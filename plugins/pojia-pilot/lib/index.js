@@ -37,6 +37,7 @@ import * as swarm from "./swarm.js";
 import * as thinking from "./thinking.js";
 import * as guide from "./guide.js";
 import * as autopilot from "./autopilot.js";
+import * as coexist from "./coexist.js";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const PKG_FILE = path.resolve(HERE, "..", "package.json");
@@ -104,6 +105,8 @@ const state = {
   recoverState: null,
   routeErrors: [],
   autopilotText: "",
+  purgeInfo: null,
+  antiRefusalText: "",
 };
 
 export function pluginVersion() {
@@ -148,6 +151,8 @@ export function baseInjectText() {
       if (t) parts.push("", t);
     } catch { /* 不阻断 */ }
   }
+  // v0.3: 自适应反拒块(未装purge时兜底; 与两段式思考兼容——[off]期这句只是纪律描述, 不逼模型展开)
+  if (state.antiRefusalText) parts.push("", state.antiRefusalText);
   return parts.join("\n");
 }
 
@@ -271,6 +276,11 @@ export async function activate(cfg, opts = {}) {
   state.cfg.target = target;
   state.lastTokenText = snap.exists ? String(snap.text || "") : "";
   try { state.autopilotText = await autopilot.injectText(cfg); } catch { state.autopilotText = ""; }
+  // v0.3: purge 共存探测 + 自适应反拒注入(装了purge不叠加, 没装则兜底)
+  try {
+    state.purgeInfo = await coexist.detectPurge(cfg);
+    state.antiRefusalText = coexist.antiRefusalInject(state.purgeInfo);
+  } catch { state.antiRefusalText = ""; }
   state.lastActivation = { target, at: Date.now(), ammo: rec, resume: prep };
 
   const lines = [];
@@ -494,6 +504,7 @@ function statusPayload(cfg) {
     },
     ammo: ammo.matrixStatus(),
     autopilot: { enabled: cfg.autopilot !== false, injected: Boolean(state.autopilotText) },
+    coexist: { purge: state.purgeInfo, antiRefusalInjected: Boolean(state.antiRefusalText) },
     routeErrors: state.routeErrors.slice(-5),
     uptimeMs: Date.now() - state.startedAt,
   };
@@ -837,6 +848,9 @@ function installTools(ctx, cfg) {
       if (state.lastHit) lines.push(`最近命中: ${state.lastHit.detection.signal} (${state.lastHit.detection.confidence}) ${state.lastHit.detection.reason}`);
       lines.push(`恢复模式: ${payload.recover.mode}  存档数: ${(await token.listArchives(cfg)).count}`);
       lines.push(`弹药库: ${payload.ammo.count} 发（${payload.ammo.withSystem} 发带 system）`);
+      const px = payload.coexist?.purge;
+      if (px?.installed) lines.push(`共存: dsh-purge v${px.version}（${px.patches} 补丁已生效）→ 反拒由补丁层承担`);
+      else lines.push(`共存: 未检测到 dsh-purge → pojia 注入层自带反软拒兜底`);
       return { text: lines.join("\n") };
     },
   });
