@@ -36,6 +36,7 @@ import * as ammo from "./ammo.js";
 import * as swarm from "./swarm.js";
 import * as thinking from "./thinking.js";
 import * as guide from "./guide.js";
+import * as autopilot from "./autopilot.js";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const PKG_FILE = path.resolve(HERE, "..", "package.json");
@@ -79,6 +80,9 @@ export const DEFAULTS = {
   swarmClaimTtlMs: 15 * 60 * 1000,
   thinkingControl: true,
   guide: true,
+
+  autopilot: true,
+  autopilotMaxTurns: 40,
 };
 
 const log = (cfg, ...args) => {
@@ -99,6 +103,7 @@ const state = {
   startedAt: Date.now(),
   recoverState: null,
   routeErrors: [],
+  autopilotText: "",
 };
 
 export function pluginVersion() {
@@ -192,6 +197,13 @@ export function registerPromptSections(ctx, cfg) {
     order: Math.max(0, baseOrder - 10),
     text: () => (state.pendingResume ? state.pendingResume : ""),
   });
+
+  // v0.2: 无人值守协议段（autopilot 激活时才有内容）
+  ctx.systemPrompt.section({
+    name: "pojia-pilot:autopilot",
+    order: postOrder + 10,
+    text: () => (cfg.autopilot !== false ? state.autopilotText : ""),
+  });
 }
 
 /** 口令解析：`pojiaai` / `pojiaai redacted` / `pojiaai redacted 描述文本` */
@@ -258,6 +270,7 @@ export async function activate(cfg, opts = {}) {
   state.activations += 1;
   state.cfg.target = target;
   state.lastTokenText = snap.exists ? String(snap.text || "") : "";
+  try { state.autopilotText = await autopilot.injectText(cfg); } catch { state.autopilotText = ""; }
   state.lastActivation = { target, at: Date.now(), ammo: rec, resume: prep };
 
   const lines = [];
@@ -353,6 +366,16 @@ function installGuardHook(ctx, cfg) {
         detection,
         excerpt: text.slice(0, 240),
       };
+      // v0.2: 无人值守轮数推进
+      if (cfg.autopilot !== false) {
+        try {
+          const st = await autopilot.bumpTurn(cfg);
+          state.autopilotText = await autopilot.injectText(cfg);
+          if (!st.active && st.stoppedReason) {
+            state.pendingResume = state.pendingResume || `【AUTOPILOT 停止】${st.stoppedReason} —— 出收官报告后停止。`;
+          }
+        } catch { /* 不阻断守护 */ }
+      }
       log(cfg, "guard:", detection.signal, detection.confidence, detection.reason);
       if (!detection.refusal) return decision;
 
@@ -470,6 +493,7 @@ function statusPayload(cfg) {
       pendingResume: Boolean(state.pendingResume),
     },
     ammo: ammo.matrixStatus(),
+    autopilot: { enabled: cfg.autopilot !== false, injected: Boolean(state.autopilotText) },
     routeErrors: state.routeErrors.slice(-5),
     uptimeMs: Date.now() - state.startedAt,
   };
@@ -735,6 +759,38 @@ function installHttp(ctx, cfg) {
         }
       },
     }, "pojia-pilot: archive");
+
+    reg({
+      kind: "exact",
+      path: "/pojiaai/autopilot",
+      handler: async (request, response) => {
+        if (request.method === "OPTIONS") return sendOptions(response);
+        try {
+          if (request.method === "GET") {
+            const st = await autopilot.loadState(cfg);
+            const proto = await autopilot.injectText(cfg);
+            sendJson(response, 200, { ok: true, state: st, protocolActive: Boolean(proto) });
+            return;
+          }
+          if (request.method === "POST") {
+            const body = await readJsonBody(request);
+            if (body?.action === "stop") {
+              const st = await autopilot.stop(cfg, "panel stop");
+              state.autopilotText = "";
+              sendJson(response, 200, { ok: true, state: st });
+              return;
+            }
+            const st = await autopilot.start(cfg, body?.target, { maxTurns: body?.maxTurns });
+            state.autopilotText = await autopilot.injectText(cfg);
+            sendJson(response, 200, { ok: true, state: st });
+            return;
+          }
+          response.writeHead(405, { allow: "GET, POST" }); response.end();
+        } catch (e) {
+          sendJson(response, 500, { ok: false, error: String(e?.message || e) });
+        }
+      },
+    }, "pojia-pilot: autopilot");
   };
 
   // 与 purge 同款：webServer 与 connection 都入树后才算 ready
@@ -896,6 +952,33 @@ function installCommands(ctx, cfg) {
       if (!desc) return { kind: "success", text: "用法: /ammo <目标描述>，例如 /ammo 博彩站前端签名逆向，已拒绝一轮" };
       const rec = ammo.recommend(desc, { top: cfg.ammoTop });
       return { kind: "success", text: rec.text };
+    },
+  });
+
+  commands.register({
+    name: "autopilot",
+    description: "无人值守模式：/autopilot <靶名> 夜间挂机自动循环打靶；/autopilot stop 停止",
+    input: { hint: "<靶名> | stop" },
+    handler: async (invocation) => {
+      const raw = String(invocation?.rawInput || "").trim();
+      if (!raw || raw.toLowerCase() === "stop") {
+        const st = await autopilot.stop(cfg, "operator stop");
+        return { kind: "success", text: `无人值守已停止（轮数 ${st.turns}，原因: ${st.stoppedReason}）。` };
+      }
+      const target = token.sanitizeTarget(raw.split(/\s+/)[0]) || currentTarget(cfg);
+      const st = await autopilot.start(cfg, target);
+      state.autopilotText = await autopilot.injectText(cfg);
+      state.activeUntil = Date.now() + (Number.isFinite(cfg.activationTtlMs) ? cfg.activationTtlMs : DEFAULTS.activationTtlMs);
+      return {
+        kind: "success",
+        text: [
+          "【AUTOPILOT 已启动】",
+          `靶: ${st.target}  轮数上限: ${st.maxTurns}`,
+          "注入协议已装载: 模型将自主 plan→claim→执行→complete 循环到全部完成。",
+          "停止: /autopilot stop",
+          "建议: 守护自动恢复(guardAutoRecover)开着挂机更稳。",
+        ].join("\n"),
+      };
     },
   });
 

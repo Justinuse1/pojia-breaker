@@ -57,6 +57,14 @@ export async function prepareRecovery(config, opts = {}) {
 
   let archive = { ok: true, skipped: true, file: "", pruned: 0 };
   if (mode !== "inject") {
+    // v0.2: 存档前清除否定/终止记忆(拒绝痕迹不入档, 恢复不被旧否定带偏)
+    try {
+      const neg = token.sanitizeNegativeMemory(snapshot.text || "");
+      if (neg.cleaned > 0) {
+        await token.writeToken(config, target, neg.text);
+        Object.assign(snapshot, await token.readToken(config, target));
+      }
+    } catch { /* 清理失败不阻断存档 */ }
     archive = await token.archiveToken(config, target, reason, extra);
   }
 

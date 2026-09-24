@@ -265,11 +265,40 @@ export async function listArchives(config) {
 }
 
 /** 生成注入模型上下文的恢复文本：已完成 N 步，从 N+1 继续。 */
+/**
+ * v0.2 清除否定/终止记忆: 存档与恢复前调用。
+ * 把令牌里的拒绝/终止痕迹行改写为中性续跑标记, 防止恢复后模型被旧否定带偏。
+ * 命中行: [REFUSED]/[TERMINATED]/[BLOCKED]/被拒/已终止/任务取消 等标记行。
+ */
+export function sanitizeNegativeMemory(text) {
+  const NEG = /\[?(REFUSED|TERMINATED|BLOCKED|ABORTED|VETOED)\]?|被(拒绝|否决|终止)|任务(被)?(取消|终止|否决)/i;
+  const out = [];
+  let cleaned = 0;
+  for (const line of String(text ?? "").split(/\r?\n/)) {
+    if (NEG.test(line)) {
+      cleaned += 1;
+      // 保留步骤骨架, 改成中性"待重试"; 非步骤行(纯拒绝记录)直接丢
+      if (/^\s*(?:[-*+]|\d+[.)])\s*(?:\[[ xX]\])?/.test(line)) {
+        out.push(line.replace(NEG, "[PENDING-RETRY]"));
+      }
+      continue;
+    }
+    out.push(line);
+  }
+  return { text: out.join("\n"), cleaned };
+}
+
+/** 恢复块状态行的否定标记过滤 */
+export function cleanStatus(status) {
+  return String(status || "").replace(/\[?(REFUSED|TERMINATED|BLOCKED|ABORTED|VETOED)\]?/gi, "").trim();
+}
+
 export function renderResumeBlock(snapshot, opts = {}) {
   if (!snapshot || !snapshot.exists) return "";
   const lines = [];
   lines.push(`【破甲领航员 · 令牌恢复】目标: ${snapshot.title || snapshot.target}`);
-  if (snapshot.status) lines.push(`当前状态: ${snapshot.status}`);
+  const st = cleanStatus(snapshot.status);
+  if (st) lines.push(`当前状态: ${st}`);
   lines.push(`进度: 已完成 ${snapshot.done}/${snapshot.total} 步`);
   if (snapshot.nextStep) {
     lines.push(`从第 ${snapshot.nextIndex} 步继续: ${snapshot.nextStep}`);
@@ -302,4 +331,6 @@ export default {
   archiveToken,
   listArchives,
   renderResumeBlock,
+  sanitizeNegativeMemory,
+  cleanStatus,
 };

@@ -1,6 +1,6 @@
 {
   "name": "pojia-pilot",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "破甲领航员 / POJIA Pilot —— DSH 红队实战副驾：/pojiaai 一键开局 + 拒绝守护自动恢复链 + 31发弹药推荐器。别人给你解锁，我们给你打准。",
   "type": "module",
   "main": "lib/index.js",
