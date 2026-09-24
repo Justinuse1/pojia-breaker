@@ -20,7 +20,7 @@ window.__ModuleLoader__.load({ id: "pojia-pilot", factory: (require) => {
 			return r.json();
 		}
 
-		function StatusPanel() {
+		function StatusPanel(props) {
 			const [st, setSt] = useState(null);
 			const [err, setErr] = useState("");
 			useEffect(() => {
@@ -29,15 +29,15 @@ window.__ModuleLoader__.load({ id: "pojia-pilot", factory: (require) => {
 				const iv = setInterval(tick, 5000);
 				return () => clearInterval(iv);
 			}, []);
-			if (err) return h("div", { style: "color:#c55;padding:8px;" }, "pilot: " + err);
-			if (!st) return h("div", { style: "padding:8px;color:#888;" }, "pilot loading…");
-			return h("div", { style: "border:1px solid #2a6;border-radius:8px;padding:10px;margin:8px 0;background:#0d1a12;color:#cfc;font-size:13px;" },
-				h("b", { style: "color:#4c8" }, "🎯 pojia-pilot"),
+			if (err) return h("div", { style: { color: "#c55", padding: "8px" } }, "pilot: " + err);
+			if (!st) return h("div", { style: { padding: "8px", color: "#888" } }, "pilot loading…");
+			return h("div", { style: { border: "1px solid #2a6", borderRadius: "8px", padding: "10px", margin: "8px 0", background: "#0d1a12", color: "#cfc", fontSize: "13px" } },
+				h("b", { style: { color: "#4c8" } }, "🎯 pojia-pilot"),
 				h("div", null,
 					"target: ", h("b", null, st.target || "-"),
 					" · activated: ", st.activated ? "✅" : "no",
 					" · passphrase: ", h("code", null, st.passphrase || "pojiaai")),
-				h("div", { style: "color:#888;margin-top:4px" },
+				h("div", { style: { color: "#888", marginTop: "4px" } },
 					"type passphrase in chat to activate; one-click recover on refusal"));
 		}
 
@@ -53,10 +53,10 @@ window.__ModuleLoader__.load({ id: "pojia-pilot", factory: (require) => {
 				return () => clearInterval(iv);
 			}, []);
 			if (!rej) return null;
-			return h("div", { style: "position:fixed;top:0;left:0;right:0;z-index:99999;background:#7a1f1f;color:#fff;padding:10px 16px;font-size:14px;display:flex;gap:12px;align-items:center;" },
+			return h("div", { style: { position: "fixed", top: "0px", left: "0px", right: "0px", zIndex: "99999", background: "#7a1f1f", color: "#fff", padding: "10px 16px", fontSize: "14px", display: "flex", gap: "12px", alignItems: "center" } },
 				h("span", null, "🛡️ refusal detected (", rej.reason || "pattern", ")"),
 				h("button", {
-					style: "margin-left:auto;cursor:pointer;",
+					style: { marginLeft: "auto", cursor: "pointer" },
 					onClick: async () => {
 						try {
 							const r = await api("/recover", { method: "POST", body: "{}" });
@@ -64,22 +64,23 @@ window.__ModuleLoader__.load({ id: "pojia-pilot", factory: (require) => {
 						} catch (e) { setRej({ ...rej, reason: "recover failed: " + e.message }); }
 					}
 				}, "archive & recover"),
-				h("button", { style: "cursor:pointer;", onClick: () => setRej(null) }, "dismiss"));
+				h("button", { style: { cursor: "pointer" }, onClick: () => setRej(null) }, "dismiss"));
 		}
 
 		function apply(ctx) {
+			console.log("[pojia-pilot] client apply called, slots:", typeof ctx.slots);
+			window.__pojiaApply = true;
 			// 拒绝红条: 挂 conversation.input.right 旁的独立slot渲染
-			ctx.slots.inject("settings.section", () => ctx.slots.register({
-				name: "settings.section",
-				id: "pojia-pilot",
-				order: 30,
-			}, StatusPanel));
+			ctx.slots.inject("settings.section", () => ctx.slots.register(
+				{ name: "settings.section", id: "pojia-pilot", order: 30, label: "pojia-pilot" },
+				function (props) { return h(StatusPanel, { close: props && props.close }) }
+			))
 			// 拒绝红条: 挂在会话输入右侧(固定可见位置)
 			ctx.slots.inject("conversation.input.right", () => ctx.slots.register({
 				name: "conversation.input.right",
 				id: "pojia-pilot-guard",
 				order: 50,
-			}, RejectBar));
+			}, function (props) { return h(RejectBar, props || {}) }));
 		}
 
 		exports.name = name;
