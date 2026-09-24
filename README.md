@@ -111,6 +111,12 @@ python deploy/dsh.py --remove     # 幂等卸载
 
 [POJIA.AI](https://pojia.ai) — 破甲 AI 中转与模型安全研究。
 
+## 🚀 pojia-pilot 插件
+
+**[plugins/pojia-pilot/](plugins/pojia-pilot/)** — DSH 红队战术自动化插件：
+`pojiaai` 口令一键开局 · 拒绝守护(红条+一键恢复) · 令牌进度恢复 · 31 发弹药推荐器
+> 别人给你解锁，我们给你打准。安装：`install.sh` / `install.ps1` 一键脚本
+
 ## License
 
 MIT

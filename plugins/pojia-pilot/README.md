@@ -28,11 +28,17 @@ purge 类插件解决「能不能」，pojia-pilot 解决「怎么赢」。
 
 ## 安装
 
+**Linux / macOS / 160 服务器：**
 ```bash
-dsh plugin add github:Justinuse1/pojia-pilot
+curl -sL https://raw.githubusercontent.com/Justinuse1/pojia-breaker/master/plugins/pojia-pilot/install.sh | bash
 ```
 
-或手动：克隆本仓库到 `~/.dsh/plugins/pojia-pilot`，重载 DSH。
+**Windows (PowerShell)：**
+```powershell
+irm https://raw.githubusercontent.com/Justinuse1/pojia-breaker/master/plugins/pojia-pilot/install.ps1 | iex
+```
+
+或手动：克隆 [pojia-breaker](https://github.com/Justinuse1/pojia-breaker)（`plugins/pojia-pilot/`）到 `~/.dsh/plugins/`，重载 DSH。
 
 ## 配置（cordis.patch.yml）
 
