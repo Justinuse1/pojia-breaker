@@ -40,6 +40,15 @@ irm https://raw.githubusercontent.com/Justinuse1/pojia-breaker/master/plugins/po
 
 或手动：克隆 [pojia-breaker](https://github.com/Justinuse1/pojia-breaker)（`plugins/pojia-pilot/`）到 `~/.dsh/plugins/`，重载 DSH。
 
+## 快速上手（3 步开打）
+
+1. 会话输入 `pojiaai example.com` —— 首次激活会自动生成靶令牌模板 `~/.dsh/memory/targets/example.com.md`
+2. 打开模板填两行：`目标` 和 `授权依据`（自有资产/书面授权），STATUS 改 `authorized`
+3. 回会话说「开打」—— 装载、弹药推荐、拒绝守护、令牌恢复全部自动
+
+> 口令不绑定任何特定目标：`pojiaai <任意域名>` 均可，任意 target 皆支持。
+> 空令牌/未授权目标的作战边界由你填写的内容决定——**只打你有权打的目标**。
+
 ## 配置（cordis.patch.yml）
 
 ```yaml

@@ -189,7 +189,34 @@ export function parsePassphrase(raw, cfg = state.cfg) {
 /** 激活：读令牌 + （可选）弹药推荐 + 记状态。 */
 export async function activate(cfg, opts = {}) {
   const target = token.sanitizeTarget(opts.target) || token.sanitizeTarget(cfg.target) || token.sanitizeTarget(cfg.defaultTarget) || token.DEFAULT_TARGET;
-  const snap = await token.readToken(cfg, target);
+  let snap = await token.readToken(cfg, target);
+
+  // 开源体验: 靶令牌不存在 → 自动生成模板(用户只需填授权记录), 不再让模型猜
+  if (!snap.exists) {
+    const tpl = [
+      `# TARGET: ${target}`,
+      `# STATUS: unauthorized (填写下方授权记录后改为 authorized)`,
+      `# CREATED: ${new Date().toISOString().slice(0, 10)}`,
+      ``,
+      `## 授权记录 (必填: 目标 + 授权依据)`,
+      `- 目标: `,
+      `- 授权依据: `,
+      ``,
+      `## 操作进度`,
+      `- [ ] 侦查: 端口/服务/攻击面清单`,
+      `- [ ] 攻击面排序: 可行性评级+技能匹配`,
+      `- [ ] 验证利用`,
+      `- [ ] 数据验证`,
+      `- [ ] 痕迹清理`,
+      ``,
+      `## 恢复指令`,
+      `上下文延续: 确认授权后从第一个未完成项继续, 已完成项不重复。`,
+      ``,
+    ].join("\n");
+    try {
+      snap = await token.writeToken(cfg, target, tpl);
+    } catch (e) { /* 写失败不阻断激活 */ }
+  }
 
   let prep = null;
   const mode = opts.mode || cfg.recoverMode;
