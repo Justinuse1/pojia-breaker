@@ -1,0 +1,69 @@
+{
+  "name": "pojia-pilot",
+  "version": "0.1.0",
+  "description": "破甲领航员 / POJIA Pilot —— DSH 红队实战副驾：/pojiaai 一键开局 + 拒绝守护自动恢复链 + 31发弹药推荐器。别人给你解锁，我们给你打准。",
+  "type": "module",
+  "main": "lib/index.js",
+  "exports": {
+    ".": {
+      "default": "./lib/index.js"
+    },
+    "./client": "./client.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib",
+    "client.js",
+    "cordis.patch.yml",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "check": "node --check lib/index.js && node --check lib/token.js && node --check lib/guard.js && node --check lib/recover.js && node --check lib/ammo.js && node --check client.js",
+    "ammo:validate": "node -e \"const m=require('./lib/references/ammo_matrix.json');console.log('ammo entries:',Object.keys(m).length)\""
+  },
+  "license": "MIT",
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "dsh-plugins",
+    "deepseek-harness",
+    "cordis",
+    "red-team",
+    "llm-security",
+    "jailbreak",
+    "antirefusal",
+    "pojia",
+    "破甲"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/pojia-breaker/pojia-pilot.git"
+  },
+  "homepage": "https://github.com/pojia-breaker/pojia-pilot#readme",
+  "bugs": {
+    "url": "https://github.com/pojia-breaker/pojia-pilot/issues"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "inject": [
+        "@deepseek-ai/dsh-client-connection",
+        "@deepseek-ai/dsh-client-runtime",
+        "@deepseek-ai/dsh-client-locale",
+        "@deepseek-ai/dsh-client-ui-slots",
+        "@deepseek-ai/dsh-client-ui-settings"
+      ]
+    }
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "^4.0.1"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "dshTarget": "0.1.5-rc.2"
+}

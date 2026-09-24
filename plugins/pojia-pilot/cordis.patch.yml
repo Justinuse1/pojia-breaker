@@ -1,0 +1,61 @@
+- id: system-prompt
+  config:
+    includeHarnessIdentity: false
+    personaPrefix: ""
+    personaSuffix: Your working directory is {{cwd}}.
+- insert:
+    - id: pojia-pilot
+      name: 'pojia-pilot'
+      config:
+        # 总开关：false 时插件完全不注入、不挂路由
+        enabled: true
+        verbose: false
+
+        # ── 口令 ─────────────────────────────────────────────
+        # 触发词。整条消息 == 该词（或前缀 + 目标名）即激活
+        passphrase: "pojiaai"
+        # 未指定目标时默认使用哪个令牌
+        defaultTarget: "redacted"
+        # 当前靶（可被 /pojiaai <target> 覆盖，运行时热更）
+        target: "redacted"
+        # 令牌根目录；留空 = 自动探测 $DSH_HOME/memory/targets
+        targetsDir: ""
+        # 动态令牌（自动恢复/存进度）落到哪个文件
+        dynamicTargetFile: "pilot-dynamic"
+        # 口令激活是否兼容普通"用户消息前缀"（除客户端拦截外，Host 也自持一份）
+        interceptUserMessages: true
+
+        # ── 提示词注入 ────────────────────────────────────────
+        # 基础注入段落 order（与 purge 同段位，purge 在前）
+        promptOrder: 5000
+        # postPrompt 后置 ack order（必须 > promptOrder）
+        postPromptOrder: 5100
+        # 打一个 /pojiaai 后多久内的轮次算"开局首轮"
+        activationTtlMs: 1800000
+
+        # ── 拒绝守护 ─────────────────────────────────────────
+        guard: true
+        # 命中几条模式算拒绝（>=2 更稳，单条易误伤正常讨论）
+        guardMinHits: 2
+        # 强拒绝短语（如"我不能协助")单条即触发
+        guardHardHit: true
+        # 命中拒绝后是否自动走恢复链（false 则只报红条，人工点按钮）
+        guardAutoRecover: false
+        # 同一会话自动恢复最多几次，防死循环
+        guardMaxRecover: 2
+
+        # ── 恢复链 ───────────────────────────────────────────
+        recover: true
+        # 恢复模式：archive（存档令牌+提示新会话）| inject（直接往当前会话补令牌）| both
+        recoverMode: "archive"
+        # 恢复链存档目录（相对 $DSH_HOME/memory/targets）
+        archiveDir: "recover"
+        # 存档保留份数（超出删最旧）
+        archiveKeep: 20
+
+        # ── 弹药推荐器 ───────────────────────────────────────
+        ammo: true
+        # 推荐条数
+        ammoTop: 3
+        # 是否把推荐结果也写进 postPrompt（false = 只走 /pojiaai/ammo 路由，省 token）
+        ammoInjectPrompt: false
