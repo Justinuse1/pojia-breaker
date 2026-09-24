@@ -108,6 +108,7 @@ export function tokenSnapshot(target, text, filePath) {
     path: filePath,
     exists: String(text ?? "").trim().length > 0,
     chars: String(text ?? "").length,
+    text: String(text ?? ""),
     title: head[0] || target,
     status: (head[1] || "").replace(/^状态\s*[:：]\s*/, "").trim(),
     ...parsed,
