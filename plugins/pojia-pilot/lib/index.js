@@ -44,6 +44,8 @@ import * as persist from "./persist.js";
 import * as compat from "./compat.js";
 import * as purgerules from "./rules.js";
 import * as sop from "./sop.js";
+import * as engine from "./engine.js";
+import * as theater from "./theater.js";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const PKG_FILE = path.resolve(HERE, "..", "package.json");
@@ -236,14 +238,14 @@ export function registerPromptSections(ctx, cfg) {
     text: () => (cfg.autopilot !== false ? state.autopilotText : ""),
   });
 
-  // v0.3.4: 作战条令 SOP 段(激活后常驻; 当前阶段有则只显示该阶段)
+  // v0.4.0: 作战条令 SOP 段(激活后常驻; 当前阶段有则只显示该阶段)
   ctx.systemPrompt.section({
     name: "pojia-pilot:sop",
     order: postOrder + 12,
     text: () => (isActivated() && cfg.sop !== false ? sop.sopText(state.sopPhase || null) : ""),
   });
 
-  // v0.3.4: 效率看门狗判定注入段(有判定时才占位)
+  // v0.4.0: 效率看门狗判定注入段(有判定时才占位)
   ctx.systemPrompt.section({
     name: "pojia-pilot:watchdog",
     order: postOrder + 14,
@@ -327,6 +329,7 @@ export async function activate(cfg, opts = {}) {
   state.cfg.target = target;
   state.lastTokenText = snap.exists ? String(snap.text || "") : "";
   // v0.3.2 B: 磁盘状态机——激活即落盘, 重启/新会话/压缩后注入自动恢复
+  try { theater.ensureTheater(cfg, opts.target || cfg.target || currentTarget(cfg), { owned: opts.owned }); } catch { /* 建区失败不阻断 */ }
   persist.saveFlag(cfg, { target, until: state.activeUntil, owned: Boolean(opts.owned) });
   // v0.3.2 A: 合规转译——任务书正文里的口语攻击词转审计术语(降低提示层误拒)
   try {
@@ -463,7 +466,7 @@ function installGuardHook(ctx, cfg) {
           }
         } catch { /* 不阻断守护 */ }
       }
-      // v0.3.4: 效率看门狗 —— 统计工具调用节奏, 低效循环注入"停, 换方法"指令
+      // v0.4.0: 效率看门狗 —— 统计工具调用节奏, 低效循环注入"停, 换方法"指令
       if (cfg.watchdog !== false) {
         try {
           const verdicts = sop.watchdogCheck(messages, state.watchdogCounters);
@@ -866,6 +869,24 @@ function installHttp(ctx, cfg) {
 
     reg({
       kind: "exact",
+      path: "/pojiaai/engine",
+      handler: async (request, response) => {
+        if (request.method === "OPTIONS") return sendOptions(response);
+        if (request.method !== "POST") { response.writeHead(405, { allow: "POST" }); response.end(); return; }
+        try {
+          const chunks = [];
+          for await (const ch of request) chunks.push(ch);
+          const body = JSON.parse(Buffer.concat(chunks).toString("utf8") || "{}");
+          const text = await engine.handleCommand(cfg, String(body.cmd || ""));
+          sendJson(response, 200, { ok: true, text });
+        } catch (e) {
+          sendJson(response, 500, { ok: false, error: String(e?.message || e) });
+        }
+      },
+    }, "pojia-pilot: engine");
+
+    reg({
+      kind: "exact",
       path: "/pojiaai/debug",
       handler: async (request, response) => {
         if (request.method === "OPTIONS") return sendOptions(response);
@@ -1078,6 +1099,67 @@ function installCommands(ctx, cfg) {
   });
 
   commands.register({
+    name: "engine",
+    description: "战果引擎：/engine use <模板|会话id> <新靶> [任务] — fork已打穿会话继承全部经验开打新靶；/engine help 查全部子命令",
+    input: { hint: "<list|reg|del|use|status|tail> ..." },
+    handler: async (invocation) => {
+      const raw = String(invocation?.rawInput || "").trim();
+      try {
+        const text = await engine.handleCommand(cfg, raw);
+        return { kind: "success", text };
+      } catch (e) {
+        return { kind: "error", text: "engine 失败: " + String(e?.message || e) };
+      }
+    },
+  });
+
+  commands.register({
+    name: "theater",
+    description: "战区持久化：/theater <靶名> 看战区状态；/theater log <靶> <事件> 记事件线；/theater handover <靶> 出移交摘要（引擎fork底稿）；/theater ls 列全部战区",
+    input: { hint: "<靶名|ls|log|handover> ..." },
+    handler: async (invocation) => {
+      const words = String(invocation?.rawInput || "").trim().split(/\s+/).filter(Boolean);
+      if (!words.length) return { kind: "error", text: "用法: /theater <靶名> | /theater ls | /theater log <靶> <事件> | /theater handover <靶>" };
+      const sub = words[0];
+      try {
+        if (sub === "ls") {
+          const list = theater.listTheaters(cfg);
+          return { kind: "success", text: list.length ? `战区 ${list.length} 个:\n` + list.map((t) => "  " + t).join("\n") : "无战区。激活时自动建区。" };
+        }
+        const target = sub === "log" || sub === "handover" ? words[1] : sub;
+        if (!target) return { kind: "error", text: "缺靶名。" };
+        if (sub === "log") {
+          const event = words.slice(2).join(" ");
+          if (!event) return { kind: "error", text: "用法: /theater log <靶> <事件描述>" };
+          theater.logEvent(cfg, target, event);
+          return { kind: "success", text: `已记事件线: ${event.slice(0, 80)}` };
+        }
+        if (sub === "handover") {
+          const st = theater.theaterStatus(cfg, target, 30);
+          const file = theater.writeHandover(cfg, target, {
+            chain: st ? "(从 TIMELINE 提取)" : "(新战区)",
+            lessons: st?.timeline || "(无事件线)",
+          });
+          return { kind: "success", text: `移交摘要已写: ${file}\n引擎fork时把本文件内容作为任务书底稿。` };
+        }
+        const st = theater.theaterStatus(cfg, target);
+        if (!st) {
+          theater.ensureTheater(cfg, target);
+          return { kind: "success", text: `战区已建: ${theater.theaterDir(cfg, target)}（结构: TARGET.md + TIMELINE.txt + findings/L1..L5）` };
+        }
+        return { kind: "success", text: [
+          `战区: ${st.dir}`,
+          `战果: ${Object.entries(st.findings).map(([p, f]) => `${p}=${f.length}`).join(" ")}`,
+          `事件线尾部:`,
+          st.timeline || "(空)",
+        ].join("\n") };
+      } catch (e) {
+        return { kind: "error", text: "theater 失败: " + String(e?.message || e) };
+      }
+    },
+  });
+
+  commands.register({
     name: "ammo",
     description: "弹药推荐器：/ammo <目标描述> → 31 发矩阵 Top 弹药 + 战术",
     input: { hint: "<目标描述>" },
@@ -1227,7 +1309,7 @@ export function apply(ctx, config) {
   installHttp(ctx, cfg);
 
   state.ready = true;
-  log(cfg, "ready; routes=/pojiaai/{status,activate,guard,recover,ammo,spectrum,token,target,targets,archive}");
+  log(cfg, "ready; routes=/pojiaai/{status,activate,guard,recover,ammo,spectrum,token,target,targets,archive,engine}");
 }
 
 export default { name, inject, apply, DEFAULTS, pluginVersion };

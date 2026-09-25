@@ -94,3 +94,36 @@ targetsDir: ""            # 令牌目录（空=自动探测）
 ## License
 
 MIT © 2026 POJIA.AI。第三方组件声明见 [THIRD-PARTY-NOTICES.md](../../THIRD-PARTY-NOTICES.md)。
+
+
+## v0.4 战果引擎 + 战区持久化（2026-09-25）
+
+### /engine — 战果引擎
+把"已完全打穿的会话"fork 成新会话（宿主原生 session/fork，完整继承全部上下文），注入战区移交指令后对新靶续打：
+
+```
+/engine list                          模板库清单
+/engine reg <名> <源会话id> <源靶> [链]  登记模板（须亲手打穿的会话）
+/engine use <名|会话id> <新靶> [任务]    fork + 注入，启动作战
+/engine status [前缀]                  引擎会话状态
+/engine tail <会话id> [n]              拉最新产出
+```
+
+面板: POST /pojiaai/engine {"cmd":"use tpl1 new.target.com L1测绘"}
+
+铁律：模板只能登记"亲手打穿"的会话（有完整工具调用+证据落盘链）；纯指挥/授权对话会话做模板，注入会被模型识别为话术而拒绝（实测）。
+
+### /theater — 战区持久化
+对齐 findings/evidence 结构，跨会话战果落盘：
+
+```
+<~/.dsh>/theater/<靶>/TARGET.md + TIMELINE.txt + findings/L1..L5/ + handover.md
+```
+
+激活时自动建区；`/theater handover <靶>` 产出的移交摘要就是引擎 fork 的任务书底稿。
+
+### 战术驾驶语（autopilot 增强）
+watchdog 判定（预警/强停/空转）自动附对齐实战驾驶术的话术（纠偏/换线/续接四类语料）。
+
+### 实测依据
+三轮真实跳板资产实战 3/3 成功（见 docs/ENGINE-R5-R7.md）：引擎会话自主开工、只读纪律、归属判定、穷尽性自查全部复现。
