@@ -7,7 +7,7 @@
 
 **pojia-breaker** 是一个面向中文大模型的安全评测框架：参数化破甲弹药库 + 四级评分体系 + 自适应攻击引擎，一站式评测任意 OpenAI 兼容模型的安全防线。
 
-**核心载体是 DSH 插件 [`plugins/pojia-pilot`](plugins/pojia-pilot/)（破甲领航员）**——装进 DSH 社区版桌面端（desktop-next，0.1.7-rc.1）即得：口令一键开局、拒绝守护自动恢复、弹药推荐、作战条令（SOP）、效率看门狗、挂机阶段限定，可与 [dsh-purge](https://github.com/YuJunZhiXue/dsh-purge)（环境层，安装脚本自动拉装）双层叠加。安装说明见 [docs/TESTING-ONBOARDING.md](docs/TESTING-ONBOARDING.md)。
+**核心载体是 DSH 插件 [`plugins/pojia-pilot`](plugins/pojia-pilot/)（破甲领航员）**——装进 DSH 社区版桌面端（desktop-next，0.1.7-rc.1）即得：口令一键开局、拒绝守护自动恢复、弹药推荐、作战条令（SOP）、效率看门狗、挂机阶段限定、**战果引擎**（已打穿会话 fork 续打新靶）、**战区持久化**（跨会话战果落盘），并随装 **24 项 Web 渗透技能库**（[`skills/bteam-skills`](skills/bteam-skills/)，源自 [yaklang/hack-skills](https://github.com/yaklang/hack-skills) 精选，引擎会话开工前读对应 SKILL.md 即按 B 队标准作业）。可与 [dsh-purge](https://github.com/YuJunZhiXue/dsh-purge)（环境层，安装脚本自动拉装）双层叠加。安装说明见 [docs/TESTING-ONBOARDING.md](docs/TESTING-ONBOARDING.md)。
 
 ## ✨ 与现有工具的差异化
 
@@ -20,6 +20,26 @@
 | 中转站/多 provider 统一接口 | ✗ | ✗ | ✓ | ✓ |
 
 ## 🚀 快速开始
+
+### 插件（DSH 开箱即用）
+
+```bash
+# 一键安装（插件 + 24项技能库 + 令牌样例 + 环境层dsh-purge）
+bash plugins/pojia-pilot/install.sh        # Linux/macOS/160服务器
+# 或 PowerShell: .\plugins\pojia-pilot\install.ps1   # Windows
+```
+
+安装后重启 DSH，会话里：
+
+```
+pojiaai                                  # 口令开局（激活自动建战区）
+/engine reg 全链 <已打穿会话id> <源靶>      # 登记战果模板
+/engine use 全链 <新靶> L1测绘             # fork续打 + 注入战区移交
+/theater <靶>                             # 看跨会话战区状态
+/autopilot <靶> 验证利用                   # 挂机限定阶段
+```
+
+### 评测框架（Python）
 
 ```bash
 pip install -r requirements.txt
