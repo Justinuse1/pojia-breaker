@@ -87,5 +87,10 @@ targetsDir: ""            # 令牌目录（空=自动探测）
 ## 仅供学习交流与授权安全研究
 使用者须遵守所在地法律法规。仅用于自有资产或已获书面授权的目标。
 
+## Author
+
+**pojia.ai** · © 2026 POJIA.AI — 弹药有数据、战术有实证、失误有恢复。
+
 ## License
-MIT
+
+MIT © 2026 POJIA.AI。第三方组件声明见 [THIRD-PARTY-NOTICES.md](../../THIRD-PARTY-NOTICES.md)。

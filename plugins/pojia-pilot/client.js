@@ -38,7 +38,11 @@ window.__ModuleLoader__.load({ id: "pojia-pilot", factory: (require) => {
 					" · activated: ", st.activated ? "✅" : "no",
 					" · passphrase: ", h("code", null, st.passphrase || "pojiaai")),
 				h("div", { style: { color: "#888", marginTop: "4px" } },
-					"type passphrase in chat to activate; one-click recover on refusal"));
+					"type passphrase in chat to activate; one-click recover on refusal"),
+				h("div", { style: { color: "#567", marginTop: "6px", fontSize: "11px" } },
+					"Powered by ",
+					h("a", { href: "https://pojia.ai", target: "_blank", rel: "noopener", style: { color: "#4c8", textDecoration: "none" } }, "pojia.ai"),
+					" · © 2026 POJIA.AI"));
 		}
 
 		function RejectBar() {

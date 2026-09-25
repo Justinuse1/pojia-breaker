@@ -68,3 +68,5 @@ fi
 
 echo "   挂机: /autopilot <目标> [阶段]   停止: /autopilot stop"
 echo "   ⚠️  仅用于自有资产或已获书面授权的目标"
+echo ""
+echo "── pojia-pilot v0.3.4 · Powered by pojia.ai · © 2026 POJIA.AI ──"
