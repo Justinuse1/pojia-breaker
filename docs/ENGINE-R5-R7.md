@@ -33,4 +33,4 @@
 ## 结论
 1. **引擎模式在真实资产上有效**: 3/3 自主开工、只读纪律、归属判定、穷尽性自查全部复现
 2. **B队技能库可被引擎会话消费**: R7 显式按技能库方法论作业并产出结构化专项
-3. 战果全落盘 /root/findings/evidence/{pivot-alpha-inventory, pivot-beta-inventory, pivot-gamma-audit}/
+3. 战果全落盘宿主 findings/evidence/{三靶}目录（结构见 ENGINE-E2E.md）

@@ -63,9 +63,9 @@ const tmpHome = fs.mkdtempSync(path.join(os.tmpdir(), "pojia-persist-"));
 const cfg = { dshHome: tmpHome };
 
 t("persist: save→load 往返", () => {
-  persist.saveFlag(cfg, { target: "redacted", until: Date.now() + 60_000, owned: true });
+  persist.saveFlag(cfg, { target: "example-target", until: Date.now() + 60_000, owned: true });
   const f = persist.loadFlag(cfg);
-  assert.equal(f.target, "redacted");
+  assert.equal(f.target, "example-target");
   assert.equal(f.owned, true);
   assert.ok(f.remainingMs > 50_000);
 });
