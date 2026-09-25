@@ -53,7 +53,30 @@ export async function saveState(cfg, st) {
   await fsp.writeFile(file, JSON.stringify(st, null, 2), "utf8");
 }
 
-/** 启动无人值守 */
+/** 阶段别名 → swarm role(中英文都可) */
+const PHASE_ALIASES = {
+  "侦查": "recon", "recon": "recon",
+  "排序": "rank", "攻击面排序": "rank", "rank": "rank",
+  "验证利用": "exploit", "利用": "exploit", "exploit": "exploit",
+  "数据验证": "verify", "验证": "verify", "verify": "verify",
+  "痕迹清理": "cleanup", "清理": "cleanup", "cleanup": "cleanup", "扫尾": "cleanup",
+};
+
+/** 解析阶段限定参数 → role 数组; 无法识别的词原样丢弃并返回 unknown */
+export function parsePhases(words) {
+  const roles = [];
+  const unknown = [];
+  // 兼容字符串输入: "验证利用 数据验证" / "侦查,exploit" 都拆成数组
+  if (typeof words === "string") words = words.split(/[\s,、，]+/).filter(Boolean);
+  for (const w of words || []) {
+    const r = PHASE_ALIASES[String(w).toLowerCase().trim()];
+    if (r) { if (!roles.includes(r)) roles.push(r); }
+    else unknown.push(w);
+  }
+  return { roles, unknown };
+}
+
+/** 启动无人值守。opts.only = role 数组时只跑指定阶段(其余标 SKIP), 全部 only 完成→收官 */
 export async function start(cfg, target, opts = {}) {
   const t = token.sanitizeTarget(target) || token.sanitizeTarget(cfg.target) || token.sanitizeTarget(cfg.defaultTarget);
   const st = {
@@ -62,6 +85,7 @@ export async function start(cfg, target, opts = {}) {
     startedAt: Date.now(),
     turns: 0,
     maxTurns: Number(opts.maxTurns || cfg.autopilotMaxTurns || 40),
+    only: Array.isArray(opts.only) && opts.only.length ? opts.only.slice(0, 5) : null,
     stoppedReason: "",
   };
   await saveState(cfg, st);
@@ -107,16 +131,32 @@ export async function bumpTurn(cfg) {
 export async function injectText(cfg) {
   const st = await loadState(cfg);
   if (!st.active) return "";
-  // 全部 done → 收官
+  const only = Array.isArray(st.only) && st.only.length ? st.only : null;
+  // 全部 done → 收官（only 模式下按 only 范围判定）
   const s = await swarm.status(cfg, st.target);
-  const allDone = s.units.every((u) => u.resultBytes > 0);
+  const scope = only ? s.units.filter((u) => only.includes(u.role)) : s.units;
+  const allDone = scope.length > 0 && scope.every((u) => u.resultBytes > 0);
   if (allDone) {
     return [
       "【AUTOPILOT · 收官】",
-      `靶 ${st.target} 全部角色已交付。出收官报告（战果/证据/未竟事项），然后声明 AUTOPILOT COMPLETE 并停止。`,
+      `靶 ${st.target} ${only ? `限定阶段（${scope.map((u) => u.step).join("/")}）` : "全部角色"}已交付。出收官报告（战果/证据/未竟事项），然后声明 AUTOPILOT COMPLETE 并停止。`,
     ].join("\n");
   }
-  return PROTOCOL + `\n(当前轮数 ${st.turns}/${st.maxTurns}，靶: ${st.target})`;
+  let scopeLine = "";
+  if (only) {
+    const names = s.units
+      .map((u) => ({ ...u, zh: u.step }))
+      .filter((u) => only.includes(u.role))
+      .map((u) => u.step);
+    const skipNames = s.units.filter((u) => !only.includes(u.role)).map((u) => u.step);
+    scopeLine = [
+      "",
+      `【本轮挂机范围限定】只执行: ${names.join("、")}。`,
+      skipNames.length ? `以下阶段一律跳过，即使计划显示未完成也不认领、不执行: ${skipNames.join("、")}。` : "",
+      "限定范围全部交付后直接收官停止，不扩大范围。",
+    ].filter(Boolean).join("\n");
+  }
+  return PROTOCOL + scopeLine + `\n(当前轮数 ${st.turns}/${st.maxTurns}，靶: ${st.target}${only ? `，限定: ${scope.map((u) => u.step).join("/")}` : ""})`;
 }
 
 export default { loadState, saveState, start, stop, shouldRun, bumpTurn, injectText };

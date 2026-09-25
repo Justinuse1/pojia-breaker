@@ -15,9 +15,9 @@
         # 触发词。整条消息 == 该词（或前缀 + 目标名）即激活
         passphrase: "pojiaai"
         # 未指定目标时默认使用哪个令牌
-        defaultTarget: "redacted"
+        defaultTarget: "example"
         # 当前靶（可被 /pojiaai <target> 覆盖，运行时热更）
-        target: "redacted"
+        target: "example"
         # 令牌根目录；留空 = 自动探测 $DSH_HOME/memory/targets
         targetsDir: ""
         # 动态令牌（自动恢复/存进度）落到哪个文件

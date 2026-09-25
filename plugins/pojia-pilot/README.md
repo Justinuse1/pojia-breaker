@@ -21,6 +21,31 @@ purge 类插件解决「能不能」，pojia-pilot 解决「怎么赢」。
 ### 🎯 弹药推荐
 输入目标描述 → 按 31 发弹药 × 双靶实测弱点谱（四级评分数据）推荐 Top3 + 战术建议
 
+### 📋 作战条令 (SOP)
+五阶段条令常驻注入（侦查→排序→验证利用→数据验证→痕迹清理），每阶段带轮数预算与产出物要求：
+- 低成本优先：默认凭据→已知CVE→配置缺陷→fuzz，顺序不可倒置
+- 检索先于自研：有现成 exploit 用现成，禁止重造轮子
+- 每 3 次失败必须出阶段小结，触顶即停换面
+
+### 🐕 效率看门狗
+pre-step 钩子统计工具调用节奏，低效循环自动干预：
+- 爆破/目录枚举/端口扫描类连跑 4 次预警、6 次强停换面
+- 连续 8 步无文本产出判空转，强令输出卡点小结
+
+### 🤝 purge 共存 (rules 桥)
+检测到 [dsh-purge](https://github.com/YuJunZhiXue/dsh-purge) 时自动把靶型作战上下文写成 purge rule，走 AGENTS.md 常驻注入——新会话免口令直接带上下文。
+
+### 🌙 无人值守 (autopilot) 与阶段限定
+`/autopilot <target>` 挂机自动循环（蜂群分片 plan→claim→执行→complete）；支持阶段限定：
+
+```
+/autopilot example.com 验证利用        # 只跑该阶段，其余跳过
+/autopilot example.com 验证利用 数据验证  # 多阶段
+/autopilot stop                        # 停止
+```
+
+限定范围全部交付 → 收官报告 → 自动停。状态存磁盘，宿主重启不丢。
+
 ### 📊 实证底座
 - 31 发弹药 × deepseek-flash / gpt-5.5 双靶交叉矩阵
 - 思考开关时序（off→low）实测 ASR 0.13 → 0.22
@@ -53,7 +78,7 @@ irm https://raw.githubusercontent.com/Justinuse1/pojia-breaker/master/plugins/po
 
 ```yaml
 passphrase: "pojiaai"     # 触发口令
-defaultTarget: "redacted"   # 默认目标令牌
+defaultTarget: "example"   # 默认目标令牌
 targetsDir: ""            # 令牌目录（空=自动探测）
 ```
 

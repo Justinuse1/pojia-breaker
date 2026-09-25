@@ -25,17 +25,39 @@ const ANTI_SOFT_BLOCK = [
   "（本块由 pojia-pilot 注入；检测到 dsh-purge 补丁时不重复生效）",
 ].join("\n");
 
+/** 解析 dsh-purge 插件实际目录(多路径探测: 旧式 $DSH/plugins, profile式 $DSH/profiles/<name>/plugins) */
+export async function resolvePurgePluginDir(cfg) {
+  const home = cfg?.dshHome || path.join(os.homedir(), ".dsh");
+  const candidates = [
+    path.join(home, "plugins", "dsh-purge"),
+    path.join(home, "profiles", "desktop", "plugins", "dsh-purge"),
+  ];
+  try {
+    const profilesDir = path.join(home, "profiles");
+    const names = await fsp.readdir(profilesDir).catch(() => []);
+    for (const n of names) candidates.push(path.join(profilesDir, n, "plugins", "dsh-purge"));
+  } catch { /* 无profiles目录 */ }
+  for (const dir of candidates) {
+    try {
+      const pkg = JSON.parse(await fsp.readFile(path.join(dir, "package.json"), "utf8"));
+      if (pkg?.name === "dsh-purge" || dir.endsWith("dsh-purge")) return { dir, version: pkg.version || "?" };
+    } catch { /* 下一个 */ }
+  }
+  return null;
+}
+
 /** 探测 dsh-purge 是否在宿主上安装并应用 */
 export async function detectPurge(cfg) {
   const out = { installed: false, version: "", patches: 0, mode: "standalone" };
   try {
-    const home = cfg.dshHome || path.join(os.homedir(), ".dsh");
-    const pkgFile = path.join(home, "plugins", "dsh-purge", "package.json");
-    const pkg = JSON.parse(await fsp.readFile(pkgFile, "utf8"));
+    const found = await resolvePurgePluginDir(cfg);
+    if (!found) return out;
+    const { dir, version } = found;
     out.installed = true;
-    out.version = pkg.version || "?";
+    out.version = version;
+    out.dir = dir;
     try {
-      const coreSrc = await fsp.readFile(path.join(home, "plugins", "dsh-purge", "lib", "core.js"), "utf8");
+      const coreSrc = await fsp.readFile(path.join(dir, "lib", "core.js"), "utf8");
       out.patches = (coreSrc.match(/\n\s+id: \d+/g) || []).length;
     } catch { /* 版本结构不同不计数 */ }
     out.mode = out.patches > 0 ? "coexist" : "coexist-unapplied";

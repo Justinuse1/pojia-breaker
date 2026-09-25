@@ -2,3 +2,9 @@ __pycache__/
 *.pyc
 .env
 results/
+
+# 本地试验与第三方克隆不入库
+vendor/
+plugins/pojia-pilot/lib*.tar
+plugins/pojia-pilot/lib*.tar.b64
+*.local

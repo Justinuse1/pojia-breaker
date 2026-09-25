@@ -3,7 +3,7 @@
  * 令牌命名空间：targets/<domain>.md 的读写、进度步骤解析、存档。
  *
  * 令牌文件约定（与 160 上 memory/targets/<domain>.md 一致）：
- *   # redacted.com
+ *   # target.example
  *   状态: 进行中
  *   - [x] 步骤一：抓 manifest.js
  *   - [ ] 步骤二：定位签名入口
@@ -15,7 +15,7 @@ import { promises as fsp } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-export const DEFAULT_TARGET = "redacted";
+export const DEFAULT_TARGET = "example";
 export const TOKEN_SUBDIR = ["memory", "targets"];
 
 /** 找 $DSH_HOME：env 优先，其次 ~/.dsh，最后回落 ~/.deepseek-harness。 */
