@@ -65,6 +65,8 @@ irm https://raw.githubusercontent.com/Justinuse1/pojia-breaker/master/plugins/po
 
 或手动：克隆 [pojia-breaker](https://github.com/Justinuse1/pojia-breaker)（`plugins/pojia-pilot/`）到 `~/.dsh/plugins/`，重载 DSH。
 
+> **环境层说明**：安装脚本会自动检测并拉取 [dsh-purge](https://github.com/YuJunZhiXue/dsh-purge)（环境层，宿主补丁+常驻注入）。拉取失败不影响 pojia-pilot 基础功能（守护/弹药/SOP/看门狗纯提示层即可运行），只是没有环境层叠加。两层齐全 = 完整战力。
+
 ## 快速上手（3 步开打）
 
 1. 会话输入 `pojiaai example.com` —— 首次激活会自动生成靶令牌模板 `~/.dsh/memory/targets/example.com.md`

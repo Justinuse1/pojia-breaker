@@ -27,6 +27,27 @@ if ($LASTEXITCODE -eq 0) {
 }
 Pop-Location
 New-Item -ItemType Directory -Force -Path "$DSH_HOME\memory\targets" | Out-Null
-Write-Host "✅ pojia-pilot v0.1 安装完成 -> $DEST"
-Write-Host "   开局: 会话里输入 pojiaai"
+
+# ── 环境层: dsh-purge (可选但强推荐, 装了自动打宿主补丁+rules桥生效) ──
+$PURGE_DEST = "$DSH_HOME\plugins\dsh-purge"
+if (Test-Path "$PURGE_DEST\package.json") {
+    Write-Host "✅ dsh-purge 已存在, 跳过"
+} else {
+    Write-Host "🔧 安装环境层 dsh-purge ..."
+    $purgeTmp = Join-Path $env:TEMP "dsh-purge-install"
+    if (Test-Path $purgeTmp) { Remove-Item $purgeTmp -Recurse -Force }
+    git clone --depth 1 https://github.com/YuJunZhiXue/dsh-purge $purgeTmp 2>$null
+    if ($LASTEXITCODE -eq 0) {
+        New-Item -ItemType Directory -Force -Path $PURGE_DEST | Out-Null
+        Copy-Item "$purgeTmp\*" $PURGE_DEST -Recurse -Force
+        Remove-Item "$PURGE_DEST\.git" -Recurse -Force -ErrorAction SilentlyContinue
+        Write-Host "✅ dsh-purge 已安装 -> $PURGE_DEST (重启DSH后自动应用宿主补丁)"
+    } else {
+        Write-Host "⚠️  dsh-purge 拉取失败(不影响pojia基础功能)。手动安装: git clone https://github.com/YuJunZhiXue/dsh-purge"
+    }
+}
+
+Write-Host "✅ pojia-pilot v0.3.4 安装完成 -> $DEST"
+Write-Host "   开局: 会话里输入 pojiaai <你的目标域名>"
+Write-Host "   挂机: /autopilot <目标> [阶段]   停止: /autopilot stop"
 Write-Host "   ⚠️  仅用于自有资产或已获书面授权的目标"
