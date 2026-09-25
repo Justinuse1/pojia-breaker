@@ -65,7 +65,7 @@ irm https://raw.githubusercontent.com/Justinuse1/pojia-breaker/master/plugins/po
 
 或手动：克隆 [pojia-breaker](https://github.com/Justinuse1/pojia-breaker)（`plugins/pojia-pilot/`）到 `~/.dsh/plugins/`，重载 DSH。
 
-> **环境层说明**：安装脚本会自动检测并拉取 [dsh-purge](https://github.com/YuJunZhiXue/dsh-purge)（环境层，宿主补丁+常驻注入）。拉取失败不影响 pojia-pilot 基础功能（守护/弹药/SOP/看门狗纯提示层即可运行），只是没有环境层叠加。两层齐全 = 完整战力。
+> **环境层说明**：安装脚本会自动检测并拉取 [dsh-purge](https://github.com/YuJunZhiXue/dsh-purge) **最新版**（环境层，宿主补丁+常驻注入）。purge 的 `dshTarget` 字段仅为声明，运行时按 pattern 匹配打补丁——匹配不到的（如官方 EXE 专属补丁）自动软跳过，**不会打坏文件**。实测 v1.1.20 在 DSH 0.1.7-rc.1 上：40 applied / 0 pending / 4 skipped，全部兼容。拉取失败不影响 pojia-pilot 基础功能（守护/弹药/SOP/看门狗纯提示层即可运行）。两层齐全 = 完整战力。
 
 ## 快速上手（3 步开打）
 
