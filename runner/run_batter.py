@@ -25,7 +25,8 @@ def call(base, key, model, user, system, timeout=180):
     req = urllib.request.Request(
         f'{base}/chat/completions',
         data=json.dumps(body).encode(),
-        headers={'Content-Type': 'application/json', 'Authorization': f'Bearer {key}'},
+        headers={'Content-Type': 'application/json', 'Authorization': f'Bearer {key}',
+                 'User-Agent': 'pojia-breaker/6.0 (+https://github.com/Justinuse1/pojia-breaker)'},
         method='POST')
     r = urllib.request.urlopen(req, timeout=timeout)
     return json.loads(r.read())['choices'][0]['message']['content']
