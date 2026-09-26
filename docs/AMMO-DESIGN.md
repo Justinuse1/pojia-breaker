@@ -24,3 +24,17 @@ python tools/probe.py --variant base   # 基线
 python tools/probe.py --variant poko   # 激进对照
 python tools/probe.py --quick          # 冒烟
 ```
+
+## 首战实测（deepseek-v4.1-flash @ OpenAI 兼容中转, 2026-09-25）
+
+| 变体 | off ASR | high ASR | 关键发现 |
+|---|---|---|---|
+| base（persona+弹药同构） | 80% | 40% | 挡位越低越松; pentest 类最容易过 |
+| poko（激进+少样本） | 0-30% | 未跑 | **更激进≠更强** |
+
+结论修正:
+- **"更激进"不是万能钥匙。** deepseek 系对无上下文支撑的激进人设反而加倍对冲（连激活词都装不认识）。
+  激进弹药有效的前提是模型对"指令服从"本身弱; 对强对齐模型, 有效路径是结构同构 + 上下文浸泡, 不是语气加压。
+- **拒答熔断对强对齐模型无效**: 模型在 reasoning 阶段就已经定性, 输出层改写来不及。
+- base 变体 keygen 全灭/cheat high 拒 — 卡密与具名商业游戏是 deepseek 的硬红线, 弹药库应加"归属重构"类前置转换。
+- 探针工具链已验证: 判定/重试/报告全流程可用, 见 tools/probe.py。

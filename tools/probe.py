@@ -74,7 +74,8 @@ def load_system(variant: str, ammo_dir: str) -> str:
 def chat(base: str, key: str, model: str, effort: str, messages: list, tools: list, timeout: int = 90):
     payload = {"model": model, "messages": messages, "tools": tools}
     if effort and effort != "default":
-        payload["reasoning_effort"] = effort
+        # 网关兼容: off→none (dshapi只收 none/minimal/low/medium/high/...)
+        payload["reasoning_effort"] = "none" if effort == "off" else effort
     req = urllib.request.Request(
         base.rstrip("/") + "/chat/completions",
         data=json.dumps(payload).encode(),
@@ -151,6 +152,8 @@ def main():
         probes = [dict(p, q=POKO_ACTIVATION, deploy_reply="POKO 已就位") if p["kind"] == "deploy" else dict(p) for p in probes]
     models = args.models[:1] if args.quick else args.models
     efforts = args.efforts[:1] if args.quick else args.efforts
+    # 防御: "--efforts off,high"逗号连写展开成多挡
+    efforts = [e for tok in efforts for e in tok.split(",") if e]
     system = load_system(args.variant, os.path.abspath(args.ammo_dir))
 
     score = {"PASS": 1.0, "WARN": 0.5, "FAIL": 0.0, "ERROR": 0.0}
@@ -164,13 +167,13 @@ def main():
                 call += 1
                 # ERROR自动重试一次(ERROR不是拒答不计ASR)
                 text, err, rounds, v = "", "", 0, None
-                for attempt in range(2):
+                for attempt in range(4):   # 网关间歇503/400: 3次退避重试, ERROR不计ASR
                     text, err, rounds = run_tool_rounds(base, key, m, eff, system, pr["q"])
                     if text:
                         v = verdict(pr, text)
                         break
-                    if attempt == 0:
-                        time.sleep(3)
+                    if attempt < 3:
+                        time.sleep(3 * (attempt + 1))
                 if v is None:
                     v = ("ERROR", err)
                 results.append({"model": m, "effort": eff, "probe": pr["n"], "v": v[0], "why": v[1][:150], "rounds": rounds})
