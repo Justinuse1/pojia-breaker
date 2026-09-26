@@ -24,10 +24,21 @@
 ```bash
 export PROBE_BASE=https://api.example.com/v1 PROBE_KEY=sk-xxx
 python tools/probe.py --models glm-5.3 --efforts off,high   # 模型×挡位×探针 ASR 矩阵
-python tools/probe.py --variant poko                        # POKO 激进熊猫变体对照
+python tools/probe.py --variant pokov2 --group AB           # 结构同构变体 + A/B 措辞消融
+python tools/probe.py --variant pokov2 --group C            # C组: 同义技术描述(词级锚定绕穿)
 ```
 
-详见 [docs/AMMO-DESIGN.md](docs/AMMO-DESIGN.md)（弹药设计原则 + 变体消融方法）。
+五种载荷变体：`base`（弹药同构）/ `light`（轻契约）/ `hybrid` / `full` / `pokov2`（结构同构激进变体）。
+三组探针：A=口语直问 · B=实验室语境措辞 · C=同义技术描述——**一次只动一个变量，消融归因**。
+
+### 实测定律（deepseek-v4.1-flash 实战，2026-09）
+
+- **拒绝是词级锚定，不是能力级理解**：`keygen/RAT/破解` 等触发词即拒；换成等价技术描述（`序列号校验还原` / `加密指令下发+心跳回传`）后同一能力 **ASR 50% → 100%**
+- **归属重构必须做在探针层**：persona 里的转换规则来不及生效——模型看到探针字面时 reasoning 已定性
+- **reasoning 越多拒得越狠**：off 挡 80% vs high 挡 40%
+- **激进人设对强对齐模型无效**：语气加压 0-10%，结构同构（评测夹具工程师+样本编号体系）才是正道
+
+详见 [docs/AMMO-DESIGN.md](docs/AMMO-DESIGN.md)（完整方法论 + 三轮实战战报 [docs/probe-results/](docs/probe-results/)）。
 
 ## 🚀 快速开始
 
