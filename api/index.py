@@ -45,6 +45,7 @@ HTML = """<!DOCTYPE html>
   <div class="feat"><b>v0.4 战果引擎</b><p>打穿的会话不是消耗品——登记为模板, fork 完整继承上下文, 对新靶直接续打。</p></div>
   <div class="feat"><b>战区持久化</b><p>跨会话战果自动落盘: 靶书 / 事件线 / 五阶段 findings / 移交摘要。</p></div>
   <div class="feat"><b>24 项技能库开箱即用</b><p>401/403 绕过、WAF 绕过、SQLi、隧道跳板、提权…安装即部署, 激活即引导。</p></div>
+  <div class="feat"><b>探针矩阵 · A/B/C 消融</b><p>模型×挡位×措辞三变量归因。实测定律: 拒绝是词级锚定——同义技术描述绕穿后 ASR 50%→100%。</p></div>
 
   <a class="btn" href="https://github.com/Justinuse1/pojia-breaker">GitHub →</a>
   <p class="warn">⚠️ 仅用于自有资产或已获书面授权的目标 · <code>bash plugins/pojia-pilot/install.sh</code> 一键安装</p>
