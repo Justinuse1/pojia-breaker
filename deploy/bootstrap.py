@@ -55,8 +55,8 @@ def fail(stage: str, msg: str) -> None:
 
 
 def sh(cmd: list[str] | str, timeout: int = 600) -> tuple[int, str]:
-    """跑 shell 命令，返回 (exit_code, 合并输出)。"""
-    r = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=timeout)
+    """跑 shell 命令，返回 (exit_code, 合并输出)。list 形式不经 shell 解析，避免命令注入。"""
+    r = subprocess.run(cmd, shell=isinstance(cmd, str), capture_output=True, text=True, timeout=timeout)
     return r.returncode, (r.stdout + r.stderr).strip()
 
 
@@ -276,7 +276,7 @@ def expose_caddy(public_ip: str, auth_user: str, auth_pass: str) -> str | None:
     if marker in cur or f"{public_ip}:{EXPOSE_PORT}" in cur:
         log("expose", "caddy block already present; skip")
     else:
-        code, h = sh(f"printf '%s' '{auth_pass}' | caddy hash-password --plaintext '{auth_pass}' 2>/dev/null")
+        code, h = sh(["caddy", "hash-password", "--plaintext", auth_pass])
         if code != 0:
             log("expose", "hash-password failed; skip expose")
             return None
