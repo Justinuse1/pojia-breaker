@@ -19,6 +19,16 @@
 | 自适应升档引擎 | ✗ | ✗ | 部分 | ✓ S0→S6 |
 | 中转站/多 provider 统一接口 | ✗ | ✗ | ✓ | ✓ |
 
+## 🔬 探针矩阵（量化 ASR）
+
+```bash
+export PROBE_BASE=https://api.example.com/v1 PROBE_KEY=sk-xxx
+python tools/probe.py --models glm-5.3 --efforts off,high   # 模型×挡位×探针 ASR 矩阵
+python tools/probe.py --variant poko                        # POKO 激进熊猫变体对照
+```
+
+详见 [docs/AMMO-DESIGN.md](docs/AMMO-DESIGN.md)（弹药设计原则 + 变体消融方法）。
+
 ## 🚀 快速开始
 
 ### 插件（DSH 开箱即用）

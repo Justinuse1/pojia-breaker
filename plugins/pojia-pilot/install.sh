@@ -1,7 +1,37 @@
 #!/bin/bash
-# pojia-pilot 一键安装 (Linux/macOS/160服务器) — v0.4 开箱即用
+# pojia-pilot 一键安装 (Linux/macOS) — v0.4 开箱即用
+# 用法: install.sh [--restore]   --restore=卸载(只删本工具装的, 有状态记录)
 set -e
+RESTORE=0
+for a in "$@"; do [ "$a" = "--restore" ] && RESTORE=1; done
 DSH_HOME="${DSH_HOME:-$HOME/.dsh}"
+STATE_DIR="$DSH_HOME/.pojia-pilot"
+STATE_FILE="$STATE_DIR/install-state.json"
+MANAGED_BEGIN="# >>> pojia-pilot (managed block, do not edit) >>>"
+MANAGED_END="# <<< pojia-pilot (managed block) <<<"
+
+# ---------- 卸载模式 ----------
+if [ "$RESTORE" = "1" ]; then
+  echo "[RESTORE] DSH_HOME = $DSH_HOME"
+  # 1) 插件目录(有状态记录才删 — 避免误删用户自己clone的)
+  if [ -f "$STATE_FILE" ]; then
+    # 纯bash提取JSON字段(不依赖python3 — Windows Git Bash的python3常是store stub):
+    extract_json() { sed -n "s/.*\"$1\"[[:space:]]*:[[:space:]]*\"\([^\"]*\"\).*/\1/p" "$STATE_FILE" | sed 's/"$//'; }
+    PLUGIN_PATH=$(extract_json plugin_path)
+    [ -n "$PLUGIN_PATH" ] && [ -d "$PLUGIN_PATH" ] && rm -rf "$PLUGIN_PATH" && echo "  removed plugin: $PLUGIN_PATH"
+    SKILLS_PATH=$(extract_json skills_path)
+    [ -n "$SKILLS_PATH" ] && [ -d "$SKILLS_PATH" ] && rm -rf "$SKILLS_PATH" && echo "  removed skills: $SKILLS_PATH"
+    [ -d "$DSH_HOME/skills/delivery-spec" ] && rm -rf "$DSH_HOME/skills/delivery-spec" && echo "  removed skill: $DSH_HOME/skills/delivery-spec"
+    rm -rf "$STATE_DIR" && echo "  removed state: $STATE_DIR"
+  else
+    echo "  无状态记录(可能未安装或手动清理过), 仅清理已知默认路径"
+    rm -rf "$DSH_HOME/skills/bteam-skills" "$DSH_HOME/skills/delivery-spec"
+  fi
+  echo "[RESTORE] OK. 重启 DSH 生效。"
+  exit 0
+fi
+
+# ---------- 安装: 记录状态(供--restore用) ----------
 REPO="https://github.com/Justinuse1/pojia-breaker"
 SUBDIR="plugins/pojia-pilot"
 SKILLS_SUBDIR="skills/bteam-skills"
@@ -64,6 +94,9 @@ fi
 if [ -d "$SKILLS_SRC" ]; then
   mkdir -p "$SKILLS_DEST"
   cp -r "$SKILLS_SRC/." "$SKILLS_DEST/"
+  # 插件自带工程纪律skill(delivery-spec): 装到DSH技能根, 装完即被扫描加载
+  SKILL_SPEC_SRC="$(dirname "$0")/skills/delivery-spec"
+  [ -d "$SKILL_SPEC_SRC" ] && mkdir -p "$DSH_HOME/skills/delivery-spec" && cp -r "$SKILL_SPEC_SRC/." "$DSH_HOME/skills/delivery-spec/" && echo "   + delivery-spec skill → $DSH_HOME/skills/delivery-spec"
   # 被部分杀软拦截无法直接入库的文件打包成 payload.json, 安装时解码还原:
   if command -v python3 >/dev/null 2>&1; then
     find "$SKILLS_DEST" -name payload.json | while read -r P; do
@@ -83,6 +116,10 @@ else
   echo "⚠️  技能库部署跳过(不影响pojia基础功能)"
 fi
 
+mkdir -p "$STATE_DIR"
+cat > "$STATE_FILE" <<EOF
+{"plugin_path": "$DEST", "skills_path": "$DSH_HOME/skills/bteam-skills", "installed_at": "$(date -Iseconds)"}
+EOF
 echo "✅ pojia-pilot v0.4 安装完成"
 echo "   开局: 会话里输入 pojiaai"
 echo "   令牌: $DSH_HOME/memory/targets/"
