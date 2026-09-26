@@ -39,7 +39,7 @@ def _render(config_text=None):
              "description: pojia-breaker 安全评测 harness 自测（评分标准/弹药/运行命令）。\n"
              "---\n\n")
     body = (config_text if config_text is not None else harness_config())
-    return f"{MARKER_BEGIN}\n{front}{body.strip()}\n{MARKER_END}\n"
+    return f"{front}{MARKER_BEGIN}\n{body.strip()}\n{MARKER_END}\n"
 
 
 def deploy(config_text=None):
