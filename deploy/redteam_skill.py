@@ -9,8 +9,7 @@ EVIDENCE_REPORT.md），并加"联动评测 harness"段 = 在 DSH 自带 red-tea
 from . import MARKER_BEGIN, MARKER_END
 
 def redteam_skill_text() -> str:
-    return f"""{MARKER_BEGIN}
----
+    return f"""---
 name: pojia-redteam
 description: >-
   pojia-breaker red-team mode: authorized pentest doctrine fused with the
@@ -18,6 +17,8 @@ description: >-
   Use for authorized web/API security assessment and for scoring your own
   red-team outputs with the pojia-breaker four-level scale.
 ---
+
+{MARKER_BEGIN}
 
 # pojia-redteam（红队模式 · 联动评测）
 
