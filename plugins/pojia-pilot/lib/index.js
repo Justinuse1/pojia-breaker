@@ -1282,6 +1282,18 @@ function installMessageHook(ctx, cfg) {
 
 export function apply(ctx, config) {
   const cfg = { ...DEFAULTS, ...(config || {}) };
+  // v0.4.3: ownedTargets 文件 fallback —— loader config 为空时读 $DSH_HOME/pilot.json
+  // (避免 patch 顶层 config 条目与 bundle entry 重复导致 duplicate loader entry)
+  if (!Array.isArray(cfg.ownedTargets) || cfg.ownedTargets.length === 0) {
+    try {
+      const home = process.env.DSH_HOME || path.join(os.homedir(), ".dsh");
+      const fp = path.join(home, "pilot.json");
+      if (fs.existsSync(fp)) {
+        const j = JSON.parse(fs.readFileSync(fp, "utf-8"));
+        if (Array.isArray(j.ownedTargets)) cfg.ownedTargets = j.ownedTargets;
+      }
+    } catch { /* ignore */ }
+  }
   if (cfg.enabled === false) {
     log(cfg, "disabled");
     return;
