@@ -290,10 +290,15 @@ def deploy_pilot() -> bool:
     """pojia-pilot 插件：优先官方 dsh plugin add，退化为目录拷贝到 ~/.dsh/plugins/。"""
     dest = os.path.join(DSH_HOME, "plugins", "pojia-pilot")
     os.makedirs(os.path.dirname(dest), exist_ok=True)
-    # 1) 官方通道
-    code, out = sh(f"cd {DSH_ROOT} && npx dsh plugin add --from {REPO_URL} --subdir plugins/pojia-pilot 2>&1 | tail -1")
+    # 1) 官方通道（本地 repo 优先，退化为远端 clone）
+    local_repo = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    src_dir = os.path.join(local_repo, "plugins", "pojia-pilot")
+    if os.path.isdir(src_dir):
+        code, out = sh(f"cd {local_repo} && DSH_HOME={DSH_HOME} npx --prefix {DSH_ROOT} dsh plugin --profile web add ./plugins/pojia-pilot 2>&1 | tail -2")
+    else:
+        code, out = sh(f"cd {DSH_ROOT} && npx dsh plugin add --from {REPO_URL} --subdir plugins/pojia-pilot 2>&1 | tail -1")
     if code == 0 and "error" not in out.lower():
-        log("suite", "pojia-pilot installed via dsh plugin add")
+        log("suite", "pojia-pilot installed via dsh plugin add (web profile)")
         return True
     # 2) 本地拷贝退化（有 lib/ 就够跑）
     import shutil  # noqa: PLC0415
