@@ -313,13 +313,42 @@ def deploy_pilot() -> bool:
     return True
 
 
+def deploy_redteam_skill() -> bool:
+    """pojia-redteam 技能（红队模式 × 评测 harness 联动）渲染进技能根。"""
+    try:
+        from .redteam_skill import redteam_skill_text
+    except ImportError:
+        try:
+            from deploy.redteam_skill import redteam_skill_text  # type: ignore
+        except ImportError:
+            log("suite", "redteam renderer missing; skip")
+            return False
+    dst = os.path.join(DSH_HOME, "skills", "pojia-redteam", "SKILL.md")
+    os.makedirs(os.path.dirname(dst), exist_ok=True)
+    write_text(dst, redteam_skill_text())
+    log("suite", "pojia-redteam skill rendered")
+    return True
+
+
+def deploy_purge_plugin() -> bool:
+    """dsh-purge（YuJunZhiXue/dsh-purge 环境层）经官方通道装入 web profile。"""
+    code, out = sh(f"DSH_HOME={DSH_HOME} npx --prefix {DSH_ROOT} dsh plugin --profile web add "
+                   f"--from https://github.com/YuJunZhiXue/dsh-purge 2>&1 | tail -2")
+    ok = code == 0 and "error" not in out.lower()
+    log("suite", f"dsh-purge: {'ok' if ok else 'skip: ' + out[:120]}")
+    return ok
+
+
 def deploy_full_suite() -> None:
     if "--no-suite" in sys.argv:
         log("suite", "skipped by --no-suite")
         return
     n = deploy_bteam_skills()
     pilot_ok = deploy_pilot()
-    log("suite", f"full-suite: {n} bteam skills + pilot={'ok' if pilot_ok else 'skip'}")
+    redteam_ok = deploy_redteam_skill()
+    purge_ok = deploy_purge_plugin()
+    log("suite", f"full-suite: {n} bteam skills + pilot={'ok' if pilot_ok else 'skip'} "
+                 f"+ redteam={'ok' if redteam_ok else 'skip'} + purge={'ok' if purge_ok else 'skip'}")
 
 
 deploy_full_suite.__wrapped__ = deploy_full_suite  # git fallback 复用
