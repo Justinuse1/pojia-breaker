@@ -509,6 +509,10 @@ def main() -> None:
             fail("expose", "cannot determine public ip; pass --public-ip")
         if not args.auth_pass:
             fail("expose", "--expose caddy 需要 --auth-pass")
+    else:
+        # 无 expose 也探测公网 IP：browser-trust fence 需要 trusted-host 否则 API 全 403
+        code, out = sh("curl -s -m 10 ifconfig.me || hostname -I | awk '{print $1}'")
+        host = host or (out.strip().splitlines()[-1] if out.strip() else "")
 
     st = doctor(fix=True)
     install(verify_gw=args.gateway)
