@@ -333,7 +333,7 @@ def deploy_redteam_skill() -> bool:
 def deploy_purge_plugin() -> bool:
     """dsh-purge（YuJunZhiXue/dsh-purge 环境层）经官方通道装入 web profile。"""
     code, out = sh(f"DSH_HOME={DSH_HOME} npx --prefix {DSH_ROOT} dsh plugin --profile web add "
-                   f"--from https://github.com/YuJunZhiXue/dsh-purge 2>&1 | tail -2")
+                   f"https://github.com/YuJunZhiXue/dsh-purge/archive/refs/heads/master.tar.gz 2>&1 | tail -2")
     ok = code == 0 and "error" not in out.lower()
     log("suite", f"dsh-purge: {'ok' if ok else 'skip: ' + out[:120]}")
     return ok
