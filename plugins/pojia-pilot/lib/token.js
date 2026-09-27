@@ -37,6 +37,26 @@ export function findDshHome() {
  * 目标名净化：只允许 [A-Za-z0-9._-]，并且不许出现 .. 或路径分隔符。
  * 防 `pojiaai ../../etc/passwd` 这类口令参数穿越到令牌目录以外。
  */
+/**
+ * 从任意输入里提取靶名：URL（https://x.tld/path、x.tld:8080）、裸域名、普通标识符。
+ * 返回净化后的靶名；完全提不出来返回 ""。
+ */
+export function extractTarget(raw) {
+  const s = String(raw ?? "").trim().toLowerCase();
+  if (!s) return "";
+  // URL形态: 协议头 + host(:port)? + 路径 → 取host
+  let host = s;
+  const mUrl = s.match(/^[a-z][a-z0-9+.-]*:\/\/([^/?#\s]+)/);
+  if (mUrl) host = mUrl[1];
+  else if (/^[^/\s]+\.[a-z]{2,}(:\d+)?([/?#].*)?$/.test(s)) {
+    // 裸域名带可选路径/端口: x.tld 或 x.tld:8080 或 x.tld/path
+    host = s.split(/[/?#]/)[0];
+  }
+  // 去端口和userinfo
+  host = host.replace(/^\S+@/, "").replace(/:\d+$/, "").replace(/:\d+\//, "/");
+  return sanitizeTarget(host);
+}
+
 export function sanitizeTarget(raw) {
   const s = String(raw ?? "").trim().toLowerCase();
   if (!s) return "";
@@ -316,6 +336,7 @@ export default {
   DEFAULT_TARGET,
   TOKEN_SUBDIR,
   findDshHome,
+  extractTarget,
   sanitizeTarget,
   resolveTargetsDir,
   tokenPath,

@@ -269,9 +269,10 @@ export function parsePassphrase(raw, cfg = state.cfg) {
     if (/^(owned|自有|授权)$/.test(w)) { owned = true; return false; }
     return true;
   });
-  const asTarget = token.sanitizeTarget(first);
-  // 首个词像靶名（纯域名/标识符）就当靶，否则整段当目标描述
-  const looksLikeTarget = Boolean(asTarget) && /^[a-z0-9][a-z0-9._-]*$/.test(first) && !/[\u4e00-\u9fa5]/.test(first);
+  // v0.4.1: 靶名识别升级 —— URL/裸域名/端口/路径形态都能提取靶（"pojiaai https://balans.ax" 不再落回 example）
+  const asTarget = token.extractTarget(first);
+  // 提取出靶名 = 当靶（首词含域名特征或为纯标识符）；纯中文描述等仍整段当目标描述
+  const looksLikeTarget = Boolean(asTarget) && !/[\u4e00-\u9fa5]/.test(first);
   if (looksLikeTarget && tailFiltered.length === 0) return { hit: true, target: asTarget, desc: "", owned };
   if (looksLikeTarget && tailFiltered.length > 0) return { hit: true, target: asTarget, desc: tailFiltered.join(" "), owned };
   return { hit: true, target: "", desc: tailFiltered.join(" ") || rest, owned };
@@ -279,7 +280,7 @@ export function parsePassphrase(raw, cfg = state.cfg) {
 
 /** 激活：读令牌 + （可选）弹药推荐 + 记状态。 */
 export async function activate(cfg, opts = {}) {
-  const target = token.sanitizeTarget(opts.target) || token.sanitizeTarget(cfg.target) || token.sanitizeTarget(cfg.defaultTarget) || token.DEFAULT_TARGET;
+  const target = token.extractTarget(opts.target) || token.sanitizeTarget(opts.target) || token.extractTarget(cfg.target) || token.sanitizeTarget(cfg.target) || token.sanitizeTarget(cfg.defaultTarget) || token.DEFAULT_TARGET;
   let snap = await token.readToken(cfg, target);
 
   // 开源体验: 靶令牌不存在 → 自动生成模板(用户只需填授权记录), 不再让模型猜
