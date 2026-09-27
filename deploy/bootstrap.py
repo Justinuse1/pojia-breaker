@@ -315,7 +315,7 @@ After=network.target
 [Service]
 Type=simple
 WorkingDirectory={root}
-ExecStart=/usr/bin/env npx dsh web --port {port} --no-open --trusted-host {host}:{eport}
+ExecStart=/usr/bin/env npx dsh web --port {port} --no-open{trust}
 Restart=always
 RestartSec=10
 Environment=NODE_ENV=production
@@ -329,7 +329,8 @@ def install_service(host: str, expose_port: int) -> None:
     if platform.system().lower() != "linux":
         log("service", "non-linux: skip systemd (run `npx dsh web` manually)")
         return
-    unit = SERVICE.format(root=DSH_ROOT, port=WEB_PORT, host=host, eport=expose_port)
+    trust = f" --trusted-host {host}:{expose_port}" if host else ""
+    unit = SERVICE.format(root=DSH_ROOT, port=WEB_PORT, trust=trust)
     path = "/etc/systemd/system/dsh-web.service"
     if os.path.exists(path):
         cur = open(path, encoding="utf-8").read()
