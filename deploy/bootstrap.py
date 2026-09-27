@@ -123,6 +123,20 @@ def install(verify_gw: str | None) -> None:
     log("install", f"dsh installed ({DSH_NPM_SPEC})")
 
 
+def write_key_env(key_env: str, key: str | None) -> None:
+    """key落 ~/.dsh/pojia.env 供 systemd EnvironmentFile 引用（systemd 不能展开 $ENV）。"""
+    val = key or os.environ.get(key_env, "")
+    if not val:
+        log("install", f"{key_env} not set; skip {DSH_HOME}/pojia.env (fill it manually or web Models page)")
+        return
+    path = os.path.join(DSH_HOME, "pojia.env")
+    os.makedirs(DSH_HOME, exist_ok=True)
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(f"{key_env}={val}\n")
+    os.chmod(path, 0o600)
+    log("install", f"{path} written (0600)")
+
+
 # ---------------------------------------------------------------- P2 patch
 
 PATCH_SKILL_BLOCK = """# [bootstrap] enable local skill discovery (off by default upstream):
@@ -319,6 +333,7 @@ ExecStart=/usr/bin/env npx dsh web --port {port} --no-open{trust}
 Restart=always
 RestartSec=10
 Environment=NODE_ENV=production
+EnvironmentFile=-{envfile}
 
 [Install]
 WantedBy=multi-user.target
@@ -330,7 +345,8 @@ def install_service(host: str, expose_port: int) -> None:
         log("service", "non-linux: skip systemd (run `npx dsh web` manually)")
         return
     trust = f" --trusted-host {host}:{expose_port}" if host else ""
-    unit = SERVICE.format(root=DSH_ROOT, port=WEB_PORT, trust=trust)
+    unit = SERVICE.format(root=DSH_ROOT, port=WEB_PORT, trust=trust,
+                          envfile=os.path.join(DSH_HOME, "pojia.env"))
     path = "/etc/systemd/system/dsh-web.service"
     if os.path.exists(path):
         cur = open(path, encoding="utf-8").read()
@@ -497,6 +513,7 @@ def main() -> None:
     st = doctor(fix=True)
     install(verify_gw=args.gateway)
     write_patches(args.gateway, args.key_env, args.key)
+    write_key_env(args.key_env, args.key)
     deploy_skills()
     deploy_full_suite()
     install_service(host=host, expose_port=EXPOSE_PORT)
