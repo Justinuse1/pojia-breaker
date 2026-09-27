@@ -224,6 +224,88 @@ def deploy_skills(config_text=None) -> None:
         fail("skills", "post-deploy detect failed")
 
 
+# ---------------------------------------------------------------- P3.5 full-suite
+# 开源插件全家桶（复刻 160 形态）：bteam-skills 全量技能 + pojia-pilot 插件
+BTEAM_SRC = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                         "skills", "bteam-skills")
+PILOT_SRC = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                         "plugins", "pojia-pilot")
+REPO_URL = "https://github.com/Justinuse1/pojia-breaker"
+
+
+def _skill_names(src: str) -> list[str]:
+    out = []
+    if os.path.isdir(src):
+        for d in sorted(os.listdir(src)):
+            if os.path.isfile(os.path.join(src, d, "SKILL.md")):
+                out.append(d)
+    return out
+
+
+def deploy_bteam_skills() -> int:
+    """把 bteam-skills 的每个技能目录拷进 ~/.dsh/skills/（幂等：整目录覆盖）。"""
+    import shutil  # noqa: PLC0415
+    names = _skill_names(BTEAM_SRC)
+    if not names:
+        log("suite", "bteam-skills source missing locally; try git fallback")
+        code, _ = sh(f"git clone --depth 1 --filter=blob:none --sparse {REPO_URL} /tmp/.pb-suite "
+                     f"2>/dev/null && git -C /tmp/.pb-suite sparse-checkout set skills/bteam-skills")
+        if code == 0 and os.path.isdir("/tmp/.pb-suite/skills/bteam-skills"):
+            return deploy_bteam_skills.__wrapped__()
+        return 0
+    dest_root = os.path.join(DSH_HOME, "skills")
+    os.makedirs(dest_root, exist_ok=True)
+    n = 0
+    for name in names:
+        src_dir = os.path.join(BTEAM_SRC, name)
+        dst_dir = os.path.join(dest_root, name)
+        # frontmatter 校验：DSH 解析器要求 SKILL.md 以 --- 开头
+        head = open(os.path.join(src_dir, "SKILL.md"), encoding="utf-8", errors="replace").read(4)
+        if not head.startswith("---"):
+            log("suite", f"skip {name}: SKILL.md frontmatter not first")
+            continue
+        if os.path.isdir(dst_dir):
+            shutil.rmtree(dst_dir)
+        shutil.copytree(src_dir, dst_dir)
+        n += 1
+    log("suite", f"bteam-skills deployed: {n} skills")
+    return n
+
+
+def deploy_pilot() -> bool:
+    """pojia-pilot 插件：优先官方 dsh plugin add，退化为目录拷贝到 ~/.dsh/plugins/。"""
+    dest = os.path.join(DSH_HOME, "plugins", "pojia-pilot")
+    os.makedirs(os.path.dirname(dest), exist_ok=True)
+    # 1) 官方通道
+    code, out = sh(f"cd {DSH_ROOT} && npx dsh plugin add --from {REPO_URL} --subdir plugins/pojia-pilot 2>&1 | tail -1")
+    if code == 0 and "error" not in out.lower():
+        log("suite", "pojia-pilot installed via dsh plugin add")
+        return True
+    # 2) 本地拷贝退化（有 lib/ 就够跑）
+    import shutil  # noqa: PLC0415
+    if not os.path.isdir(PILOT_SRC):
+        log("suite", "pojia-pilot source missing; skip")
+        return False
+    if os.path.isdir(dest):
+        shutil.rmtree(dest)
+    shutil.copytree(PILOT_SRC, dest,
+                    ignore=shutil.ignore_patterns("test", "__pycache__", ".git"))
+    log("suite", f"pojia-pilot copied to {dest}")
+    return True
+
+
+def deploy_full_suite() -> None:
+    if "--no-suite" in sys.argv:
+        log("suite", "skipped by --no-suite")
+        return
+    n = deploy_bteam_skills()
+    pilot_ok = deploy_pilot()
+    log("suite", f"full-suite: {n} bteam skills + pilot={'ok' if pilot_ok else 'skip'}")
+
+
+deploy_full_suite.__wrapped__ = deploy_full_suite  # git fallback 复用
+
+
 # ---------------------------------------------------------------- P4 service
 
 SERVICE = """[Unit]
@@ -374,6 +456,8 @@ def uninstall() -> None:
         if os.path.exists(pp):
             write_text(pp, _strip_old_blocks(read_text(pp)))
     sh(f"rm -rf {DSH_HOME}/skills/pojia-eval {DSH_HOME}/skills/pojia-redteam")
+    sh(f"rm -rf {DSH_HOME}/skills/bteam-skills {DSH_HOME}/plugins/pojia-pilot")
+    sh("rm -rf /tmp/.pb-suite")
     log("uninstall", "done (dsh 本体保留于 " + DSH_ROOT + "，如需彻底清除请手动删除)")
 
 
@@ -388,6 +472,7 @@ def main() -> None:
     ap.add_argument("--public-ip", default=None)
     ap.add_argument("--auth-user", default="dash")
     ap.add_argument("--auth-pass", default=None)
+    ap.add_argument("--no-suite", action="store_true", help="跳过开源插件全家桶(bteam-skills+pojia-pilot)")
     ap.add_argument("--doctor", action="store_true", help="只跑体检")
     ap.add_argument("--uninstall", action="store_true")
     args = ap.parse_args()
@@ -412,6 +497,7 @@ def main() -> None:
     install(verify_gw=args.gateway)
     write_patches(args.gateway, args.key_env, args.key)
     deploy_skills()
+    deploy_full_suite()
     install_service(host=host, expose_port=EXPOSE_PORT)
     url = None
     if args.expose == "caddy" and host:
