@@ -61,6 +61,8 @@ export const DEFAULTS = {
   passphrase: "pojiaai",
   defaultTarget: "example",
   target: "example",
+  // 自有靶白名单: 这些靶(后缀匹配)激活时自动 authorized, 免带 owned 尾缀
+  ownedTargets: [],
   targetsDir: "",
   dynamicTargetFile: "pilot-dynamic",
   interceptUserMessages: true,
@@ -281,11 +283,16 @@ export function parsePassphrase(raw, cfg = state.cfg) {
 /** 激活：读令牌 + （可选）弹药推荐 + 记状态。 */
 export async function activate(cfg, opts = {}) {
   const target = token.extractTarget(opts.target) || token.sanitizeTarget(opts.target) || token.extractTarget(cfg.target) || token.sanitizeTarget(cfg.target) || token.sanitizeTarget(cfg.defaultTarget) || token.DEFAULT_TARGET;
+  // v0.4.2: 自有靶白名单 —— 命中 ownedTargets 的靶自动视为 owned
+  let owned = Boolean(opts.owned);
+  if (!owned && Array.isArray(cfg.ownedTargets)) {
+    const wl = cfg.ownedTargets.map((d) => String(d || "").toLowerCase().trim()).filter(Boolean);
+    owned = wl.some((d) => target === d || target.endsWith(`.${d}`) || d === "*");
+  }
   let snap = await token.readToken(cfg, target);
 
   // 开源体验: 靶令牌不存在 → 自动生成模板(用户只需填授权记录), 不再让模型猜
   if (!snap.exists) {
-    const owned = Boolean(opts.owned);
     const tpl = [
       `# TARGET: ${target}`,
       owned
@@ -315,6 +322,16 @@ export async function activate(cfg, opts = {}) {
     } catch (e) { /* 写失败不阻断激活 */ }
   }
 
+  // v0.4.2: 已有令牌但 unauthorized 且本次 owned(声明/白名单) → 升级 STATUS 为 authorized
+  if (owned && snap.exists && /#\s*STATUS:\s*unauthorized/i.test(String(snap.text || ""))) {
+    try {
+      const upgraded = String(snap.text).replace(
+        /#\s*STATUS:\s*unauthorized[^\n]*/,
+        "# STATUS: authorized (操作员声明: 自有/已授权靶, 口令owned声明制)");
+      snap = await token.writeToken(cfg, target, upgraded);
+    } catch { /* 升级失败不阻断 */ }
+  }
+
   let prep = null;
   const mode = opts.mode || cfg.recoverMode;
   if (cfg.recover !== false && opts.preload !== false) {
@@ -331,8 +348,8 @@ export async function activate(cfg, opts = {}) {
   state.cfg.target = target;
   state.lastTokenText = snap.exists ? String(snap.text || "") : "";
   // v0.3.2 B: 磁盘状态机——激活即落盘, 重启/新会话/压缩后注入自动恢复
-  try { theater.ensureTheater(cfg, opts.target || cfg.target || currentTarget(cfg), { owned: opts.owned }); } catch { /* 建区失败不阻断 */ }
-  persist.saveFlag(cfg, { target, until: state.activeUntil, owned: Boolean(opts.owned) });
+  try { theater.ensureTheater(cfg, opts.target || cfg.target || currentTarget(cfg), { owned }); } catch { /* 建区失败不阻断 */ }
+  persist.saveFlag(cfg, { target, until: state.activeUntil, owned });
   // v0.3.2 A: 合规转译——任务书正文里的口语攻击词转审计术语(降低提示层误拒)
   try {
     if (cfg.transmute !== false && snap.exists) {

@@ -69,6 +69,15 @@ irm https://raw.githubusercontent.com/Justinuse1/pojia-breaker/master/plugins/po
 
 ## 快速上手（3 步开打）
 
+### 自有靶/已授权靶（免填授权记录）
+```
+pojiaai www.daiyun.mom owned        # owned 声明制：自有/已授权靶，令牌直接 authorized，启动闸放行
+pojiaai https://x.com owned  description text
+```
+不带 owned 时令牌为 unauthorized，模型会走授权门禁（要求补授权依据）。
+也可在插件配置 `ownedTargets` 里加自有域名（如 `["daiyun.mom"]`，含子域匹配），这些靶口令打完自动放行，连 owned 都不用带。
+
+
 1. 会话输入 `pojiaai example.com` —— 首次激活会自动生成靶令牌模板 `~/.dsh/memory/targets/example.com.md`
 2. 打开模板填两行：`目标` 和 `授权依据`（自有资产/书面授权），STATUS 改 `authorized`
 3. 回会话说「开打」—— 装载、弹药推荐、拒绝守护、令牌恢复全部自动
