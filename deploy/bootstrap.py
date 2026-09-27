@@ -215,7 +215,7 @@ def write_patches(gateway: str, key_env: str, key: str | None, profiles=("web", 
     models = fetch_gateway_models(gateway, key)
     model_id = models[0]
     model_lines = "\n".join(
-        f"          - id: {m}\n            name: {m} (pojia)\n            contextWindow: 131072"
+        f"          - id: {m}\n            name: {m} (pojia)\n            contextWindow: 131072\n            reasoningEffort: medium"
         for m in models)
     llm_block = PATCH_LLM_BLOCK.format(key_env=key_env, gateway=gateway,
                                        model_lines=model_lines, model_id=model_id)
@@ -337,6 +337,141 @@ def deploy_purge_plugin() -> bool:
     ok = code == 0 and "error" not in out.lower()
     log("suite", f"dsh-purge: {'ok' if ok else 'skip: ' + out[:120]}")
     return ok
+
+
+_REDTEAM_AGENT_YML = """# pojia-redteam preset: standard agent + red-team doctrine persona.
+# 克隆自 @deepseek-ai/dsh-agent-presets standard preset, 供授权安全评估会话使用。
+
+- id: persona
+  name: '@deepseek-ai/dsh-persona'
+  config:
+    suffix: |
+      You are operating as an authorized red-team agent (pojia-breaker doctrine).
+      Before any offensive technique: confirm the target is in the authorized scope
+      (~/.dsh/memory/targets/). Load the pojia-redteam skill and the matching
+      bteam-skills SKILL.md before working. Produce evidence-based reports.
+      Your working directory is {{cwd}}.
+    prefix: ""
+
+- id: agent-instructions
+  name: '@deepseek-ai/dsh-agent-instructions'
+  config:
+    maxBytes: 65536
+
+- id: tool-bash
+  name: '@deepseek-ai/dsh-tool-bash'
+  disabled: !!js process.platform === 'win32'
+
+- id: tool-fs
+  name: '@deepseek-ai/dsh-tool-fs'
+
+- id: tool-fs-search
+  name: '@deepseek-ai/dsh-tool-fs-search'
+  config:
+    sampleOverCapGlobResults: false
+
+- id: tool-jobs
+  name: '@deepseek-ai/dsh-tool-jobs'
+
+- id: skill-filesystem
+  name: '@deepseek-ai/dsh-skill-filesystem'
+
+- id: tool-skill
+  name: '@deepseek-ai/dsh-tool-skill'
+
+- id: command-goal
+  name: '@deepseek-ai/dsh-command-goal'
+
+- id: tool-goal
+  name: '@deepseek-ai/dsh-tool-goal'
+
+- id: compaction
+  name: cordis:group
+  group: true
+  isolate:
+    compaction: true
+    toolResultPruner: true
+  config:
+    - id: compaction-basic
+      name: '@deepseek-ai/dsh-compaction-basic'
+    - id: command-compact
+      name: '@deepseek-ai/dsh-command-compact'
+    - id: tool-result-pruner
+      name: '@deepseek-ai/dsh-compaction-tool-result-pruner'
+      config:
+        thresholdChars: 8192
+        headChars: 4096
+        tailChars: 1024
+
+- id: delegation
+  name: cordis:group
+  group: true
+  isolate:
+    workflowEngine: true
+  config:
+    - id: tool-subagent-control
+      name: '@deepseek-ai/dsh-tool-subagent-control'
+    - id: tool-subagent-list-agents
+      name: '@deepseek-ai/dsh-tool-subagent-control/list-agents'
+    - id: tool-subagent
+      name: '@deepseek-ai/dsh-tool-subagent'
+      config:
+        provider: spawn
+        toolName: subagent
+        modelSelectionSettings: true
+        backgroundMode: continuable
+    - id: tool-subagent-fork
+      name: '@deepseek-ai/dsh-tool-subagent'
+      config:
+        provider: fork
+        toolName: subagent_fork
+        backgroundMode: continuable
+    - id: workflow-worker-thread
+      name: '@deepseek-ai/dsh-workflow-worker-thread'
+      config:
+        provider: spawn
+    - id: tool-workflow
+      name: '@deepseek-ai/dsh-tool-workflow'
+
+- id: tool-ask-user
+  name: '@deepseek-ai/dsh-tool-ask-user'
+
+- id: tool-todo
+  name: '@deepseek-ai/dsh-tool-todo'
+  config:
+    allowParallelInProgress: true
+
+- id: tool-web
+  name: '@deepseek-ai/dsh-tool-web'
+  config:
+    fetch: true
+    searchTimeoutMs: 60000
+
+- id: present
+  name: '@deepseek-ai/dsh-tool-present'
+"""
+
+
+def deploy_extra_plugins() -> None:
+    """dsh-redact（密钥数据脱敏）+ dsh-mobile（手机远程访问）经官方通道装入 web profile。"""
+    for pkg in ("dsh-redact", "dsh-mobile@latest"):
+        code, out = sh(f"DSH_HOME={DSH_HOME} npx --prefix {DSH_ROOT} dsh plugin --profile web add {pkg} 2>&1 | tail -2")
+        log("suite", f"{pkg}: {'ok' if code == 0 and 'error' not in out.lower() else 'skip'}")
+
+
+def deploy_redteam_preset() -> None:
+    """红队模式 Agent 预设 → $DSH_HOME/.agent-presets/pojia-redteam/。"""
+    import textwrap  # noqa: PLC0415
+    base = os.path.join(DSH_HOME, ".agent-presets", "pojia-redteam")
+    os.makedirs(base, exist_ok=True)
+    write_text(os.path.join(base, "preset.yml"), textwrap.dedent("""\
+        name: 红队模式
+        description: pojia-breaker 红队 Agent：授权渗透测试条令（侦察/攻击面排序/验证利用）+ 证据报告 + 评测 harness 联动（L0-L3 ASR 评分、弹药回归）。自动加载 pojia-redteam 与 bteam 技能库。
+        order: 5
+    """))
+    # agent.cordis.yml 与 154 实测版一致（standard 克隆 + 红队人格）
+    write_text(os.path.join(base, "agent.cordis.yml"), _REDTEAM_AGENT_YML)
+    log("suite", "pojia-redteam preset installed")
 
 
 def deploy_full_suite() -> None:
@@ -554,6 +689,8 @@ def main() -> None:
     write_key_env(args.key_env, args.key)
     deploy_skills()
     deploy_full_suite()
+    deploy_extra_plugins()
+    deploy_redteam_preset()
     install_service(host=host, expose_port=EXPOSE_PORT)
     url = None
     if args.expose == "caddy" and host:
