@@ -27,6 +27,7 @@
 import { scenarioText, scenarioName } from "./scenarios.js";
 import fs from "node:fs";
 import { promises as fsp } from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
