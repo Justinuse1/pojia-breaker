@@ -192,7 +192,14 @@ def _strip_old_blocks(text: str) -> str:
 
 
 def fetch_gateway_models(gateway: str, key: str | None) -> list[str]:
-    """从网关拉真实模型列表（失败回退到 deepseek-v4-flash）。"""
+    """从网关拉真实模型列表（key 为 None 时从 pojia.env 读；失败回退到 deepseek-v4-flash）。"""
+    if not (gateway and key):
+        env_file = os.path.join(DSH_HOME, "pojia.env")
+        if os.path.exists(env_file):
+            for line in open(env_file, encoding="utf-8"):
+                if line.strip().startswith("POJIA_API_KEY="):
+                    key = line.split("=", 1)[1].strip()
+                    break
     if not (gateway and key):
         return ["deepseek-v4-flash"]
     try:
