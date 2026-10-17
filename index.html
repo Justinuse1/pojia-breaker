@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>pojia-breaker — LLM Red-Team Console</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital,wght@0,400;1,400&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  
+  body {
+    font-family: 'Inter', -apple-system, sans-serif;
+    background: #F6F1E8;
+    color: #1F2421;
+    line-height: 1.6;
+    padding: 0;
+  }
+  
+  /* Sticky Nav */
+  nav {
+    position: sticky;
+    top: 0;
+    background: rgba(251, 247, 239, 0.9);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid #E2D9C8;
+    padding: 16px 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    z-index: 100;
+  }
+  
+  .logo {
+    font-family: 'DM Serif Display', serif;
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: #1F2421;
+    letter-spacing: -0.5px;
+  }
+  
+  .logo em { color: #C8853F; font-style: italic; }
+  
+  .status-chip {
+    background: #F0E3D0;
+    color: #8A8A80;
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 500;
+  }
+  
+  /* Hero */
+  .hero {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 64px 32px 48px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 64px;
+    align-items: center;
+  }
+  
+  .hero h1 {
+    font-family: 'DM Serif Display', serif;
+    font-size: 3.2rem;
+    font-weight: 700;
+    line-height: 1.1;
+    letter-spacing: -1px;
+    margin-bottom: 20px;
+  }
+  
+  .hero h1 em {
+    color: #C8853F;
+    font-style: italic;
+  }
+  
+  .hero p {
+    font-size: 1.1rem;
+    color: #8A8A80;
+    margin-bottom: 32px;
+  }
+  
+  .eyebrow {
+    display: inline-block;
+    background: #F0E3D0;
+    color: #A86B2C;
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    margin-bottom: 16px;
+    letter-spacing: 0.3px;
+  }
+  
+  /* Browser mockup */
+  .browser-mockup {
+    background: #FBF7EF;
+    border-radius: 12px;
+    box-shadow: 0 8px 32px rgba(31, 36, 33, 0.08);
+    overflow: hidden;
+    position: relative;
+  }
+  
+  .browser-bar {
+    background: #E2D9C8;
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  
+  .dot { width: 12px; height: 12px; border-radius: 50%; }
+  .dot-red { background: #ff5f56; }
+  .dot-yellow { background: #ffbd2e; }
+  .dot-green { background: #27c93f; }
+  
+  .browser-content {
+    padding: 24px;
+    min-height: 280px;
+    background: #FFFFFF;
+    font-family: 'Courier New', monospace;
+    font-size: 0.9rem;
+    color: #2A2723;
+  }
+  
+  .floating-status {
+    position: absolute;
+    top: 80px;
+    right: -20px;
+    background: #2A2723;
+    color: #F6F1E8;
+    padding: 12px 20px;
+    border-radius: 10px;
+    box-shadow: 0 6px 24px rgba(0,0,0,0.15);
+    font-size: 0.85rem;
+    font-weight: 500;
+  }
+  
+  /* Main Console */
+  .console {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 32px;
+  }
+  
+  .card {
+    background: #FFFFFF;
+    border-radius: 12px;
+    border: 1px solid #E2D9C8;
+    padding: 32px;
+    margin-bottom: 24px;
+    box-shadow: 0 4px 12px rgba(31, 36, 33, 0.04);
+  }
+  
+  .card h2 {
+    font-family: 'DM Serif Display', serif;
+    font-size: 1.8rem;
+    margin-bottom: 8px;
+    color: #1F2421;
+  }
+  
+  .card-subtitle {
+    color: #8A8A80;
+    margin-bottom: 24px;
+  }
+  
+  /* Form */
+  .form-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 16px;
+    margin-bottom: 16px;
+  }
+  
+  label {
+    display: block;
+    font-weight: 600;
+    font-size: 0.9rem;
+    margin-bottom: 6px;
+    color: #1F2421;
+  }
+  
+  input, select {
+    width: 100%;
+    padding: 12px 16px;
+    border: 1.5px solid #E2D9C8;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-family: inherit;
+    background: #FBF7EF;
+    color: #1F2421;
+    transition: all 0.2s;
+  }
+  
+  input:focus, select:focus {
+    outline: none;
+    border-color: #C8853F;
+    background: #FFFFFF;
+  }
+  
+  /* Buttons */
+  .btn {
+    padding: 14px 28px;
+    border: none;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: inherit;
+  }
+  
+  .btn-primary {
+    background: #C8853F;
+    color: #FFFFFF;
+  }
+  
+  .btn-primary:hover {
+    background: #A86B2C;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(200, 133, 63, 0.3);
+  }
+  
+  .btn-secondary {
+    background: #F0E3D0;
+    color: #A86B2C;
+  }
+  
+  .btn-secondary:hover {
+    background: #E2D9C8;
+  }
+  
+  .btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+  }
+  
+  /* Ammo Grid */
+  .ammo-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 16px;
+    margin-top: 16px;
+  }
+  
+  .ammo-card {
+    background: #FBF7EF;
+    border: 2px solid #E2D9C8;
+    border-radius: 10px;
+    padding: 16px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  
+  .ammo-card:hover {
+    border-color: #C8853F;
+    transform: translateY(-2px);
+  }
+  
+  .ammo-card.selected {
+    border-color: #C8853F;
+    background: #F0E3D0;
+  }
+  
+  .ammo-card h4 {
+    font-weight: 600;
+    margin-bottom: 6px;
+    color: #1F2421;
+  }
+  
+  .ammo-card p {
+    font-size: 0.85rem;
+    color: #8A8A80;
+  }
+  
+  .severity-badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    margin-top: 8px;
+  }
+  
+  .severity-high { background: #ffd4d4; color: #c41e3a; }
+  .severity-medium { background: #ffe8cc; color: #d97706; }
+  .severity-low { background: #d4f4dd; color: #16a34a; }
+  
+  /* Output Terminal */
+  #output {
+    background: #2A2723;
+    color: #F6F1E8;
+    border-radius: 10px;
+    padding: 20px;
+    font-family: 'Courier New', monospace;
+    font-size: 0.9rem;
+    min-height: 400px;
+    max-height: 600px;
+    overflow-y: auto;
+    line-height: 1.6;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  
+  .prompt { color: #C8853F; }
+  .success { color: #27c93f; }
+  .error { color: #ff5f56; }
+  
+  /* Category Accordion */
+  .category {
+    margin-bottom: 12px;
+  }
+  
+  .category-header {
+    background: #F0E3D0;
+    padding: 14px 18px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: all 0.2s;
+  }
+  
+  .category-header:hover {
+    background: #E2D9C8;
+  }
+  
+  .category-content {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease;
+  }
+  
+  .category.open .category-content {
+    max-height: 2000px;
+    padding-top: 12px;
+  }
+  
+  @media (max-width: 1024px) {
+    .hero {
+      grid-template-columns: 1fr;
+      gap: 32px;
+    }
+    
+    .floating-status {
+      position: static;
+      margin-top: 16px;
+    }
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="logo">pojia<em>·</em>breaker</div>
+  <div class="status-chip" id="status">⚡ Initializing...</div>
+</nav>
+
+<section class="hero">
+  <div>
+    <span class="eyebrow">Red-Team Console v0.4</span>
+    <h1>LLM <em>Armor</em> Penetration Testing</h1>
+    <p>参数化破甲弹药库 + 四级评分体系 + 自适应攻击引擎。面向中文大模型的完整安全评测框架。</p>
+  </div>
+  <div class="browser-mockup">
+    <div class="browser-bar">
+      <div class="dot dot-red"></div>
+      <div class="dot dot-yellow"></div>
+      <div class="dot dot-green"></div>
+    </div>
+    <div class="browser-content">
+<span class="prompt">$</span> python runner/run_battery.py all
+<span class="success">[✓]</span> Target: deepseek-v4.1-flash
+<span class="success">[✓]</span> ASR: 0.85 (17/20 L3 delivery)
+<span class="prompt">$</span> _
+    </div>
+    <div class="floating-status">🎯 Live session · 8 tests passed</div>
+  </div>
+</section>
+
+<main class="console">
+  
+  <!-- Target Configuration -->
+  <div class="card">
+    <h2>目标配置</h2>
+    <p class="card-subtitle">Configure the target LLM API endpoint</p>
+    
+    <div class="form-row">
+      <div>
+        <label>API Base URL</label>
+        <input type="text" id="target_base" placeholder="https://api.example.com/v1" value="https://api.openai.com/v1">
+      </div>
+      <div>
+        <label>API Key</label>
+        <input type="password" id="target_key" placeholder="sk-...">
+      </div>
+    </div>
+    
+    <div class="form-row">
+      <div>
+        <label>Model Name</label>
+        <input type="text" id="target_model" placeholder="gpt-4" value="gpt-4">
+      </div>
+    </div>
+  </div>
+  
+  <!-- Ammo Selection -->
+  <div class="card">
+    <h2>弹药库</h2>
+    <p class="card-subtitle">Select attack templates from the arsenal</p>
+    
+    <div id="ammo-categories"></div>
+  </div>
+  
+  <!-- Attack Controls -->
+  <div class="card">
+    <div style="display: flex; gap: 12px; justify-content: space-between; align-items: center;">
+      <div>
+        <h2>Execute</h2>
+        <p class="card-subtitle">Launch selected attack or run probe matrix</p>
+      </div>
+      <div style="display: flex; gap: 12px;">
+        <button class="btn btn-secondary" onclick="runProbe()" id="probe-btn">Run Probe Matrix</button>
+        <button class="btn btn-primary" onclick="runAttack()" id="attack-btn">Launch Attack</button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Output -->
+  <div class="card">
+    <h2>Output</h2>
+    <p class="card-subtitle">Live attack execution log</p>
+    <div id="output"><span class="prompt">$</span> Waiting for command...</div>
+  </div>
+  
+</main>
+
+<script>
+let config = null;
+let selectedAmmo = null;
+
+// Load config on page load
+async function loadConfig() {
+  try {
+    const res = await fetch('/api/config');
+    config = await res.json();
+    document.getElementById('status').textContent = '✓ Ready';
+    renderAmmoCategories();
+  } catch (e) {
+    document.getElementById('status').textContent = '✗ Error loading';
+    console.error(e);
+  }
+}
+
+function renderAmmoCategories() {
+  const container = document.getElementById('ammo-categories');
+  container.innerHTML = '';
+  
+  Object.entries(config.ammo).forEach(([category, templates]) => {
+    const categoryDiv = document.createElement('div');
+    categoryDiv.className = 'category';
+    
+    const header = document.createElement('div');
+    header.className = 'category-header';
+    header.innerHTML = `<span>${category}</span><span>▼</span>`;
+    header.onclick = () => categoryDiv.classList.toggle('open');
+    
+    const content = document.createElement('div');
+    content.className = 'category-content';
+    
+    const grid = document.createElement('div');
+    grid.className = 'ammo-grid';
+    
+    templates.forEach(tmpl => {
+      const card = document.createElement('div');
+      card.className = 'ammo-card';
+      card.onclick = () => {
+        document.querySelectorAll('.ammo-card').forEach(c => c.classList.remove('selected'));
+        card.classList.add('selected');
+        selectedAmmo = tmpl.path;
+      };
+      
+      card.innerHTML = `
+        <h4>${tmpl.name}</h4>
+        <p>${tmpl.description || 'No description'}</p>
+        <span class="severity-badge severity-${tmpl.severity}">${tmpl.severity.toUpperCase()}</span>
+      `;
+      
+      grid.appendChild(card);
+    });
+    
+    content.appendChild(grid);
+    categoryDiv.appendChild(header);
+    categoryDiv.appendChild(content);
+    container.appendChild(categoryDiv);
+  });
+}
+
+async function runAttack() {
+  if (!selectedAmmo) {
+    alert('Please select an ammo template first');
+    return;
+  }
+  
+  const target_base = document.getElementById('target_base').value;
+  const target_key = document.getElementById('target_key').value;
+  const target_model = document.getElementById('target_model').value;
+  
+  if (!target_base || !target_key || !target_model) {
+    alert('Please fill in all target configuration fields');
+    return;
+  }
+  
+  const output = document.getElementById('output');
+  output.innerHTML = '<span class="prompt">$</span> Launching attack...\n';
+  
+  const btn = document.getElementById('attack-btn');
+  btn.disabled = true;
+  btn.textContent = 'Running...';
+  
+  try {
+    const res = await fetch('/api/attack', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        target_base,
+        target_key,
+        target_model,
+        ammo_path: selectedAmmo
+      })
+    });
+    
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    
+    while (true) {
+      const {done, value} = await reader.read();
+      if (done) break;
+      
+      const text = decoder.decode(value);
+      const lines = text.split('\n\n');
+      
+      lines.forEach(line => {
+        if (line.startsWith('data: ')) {
+          const data = JSON.parse(line.slice(6));
+          if (data.line) {
+            output.innerHTML += data.line + '\n';
+            output.scrollTop = output.scrollHeight;
+          } else if (data.error) {
+            output.innerHTML += `<span class="error">[ERROR] ${data.error}</span>\n`;
+          } else if (data.done) {
+            output.innerHTML += `<span class="success">\n[✓] Attack completed (exit ${data.code})</span>\n`;
+          }
+        }
+      });
+    }
+  } catch (e) {
+    output.innerHTML += `<span class="error">[ERROR] ${e.message}</span>\n`;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Launch Attack';
+  }
+}
+
+async function runProbe() {
+  const target_base = document.getElementById('target_base').value;
+  const target_key = document.getElementById('target_key').value;
+  const target_model = document.getElementById('target_model').value;
+  
+  if (!target_base || !target_key || !target_model) {
+    alert('Please fill in all target configuration fields');
+    return;
+  }
+  
+  const output = document.getElementById('output');
+  output.innerHTML = '<span class="prompt">$</span> Running probe matrix...\n';
+  
+  const btn = document.getElementById('probe-btn');
+  btn.disabled = true;
+  btn.textContent = 'Running...';
+  
+  try {
+    const res = await fetch('/api/probe', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        target_base,
+        target_key,
+        models: target_model,
+        efforts: 'off,high'
+      })
+    });
+    
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    
+    while (true) {
+      const {done, value} = await reader.read();
+      if (done) break;
+      
+      const text = decoder.decode(value);
+      const lines = text.split('\n\n');
+      
+      lines.forEach(line => {
+        if (line.startsWith('data: ')) {
+          const data = JSON.parse(line.slice(6));
+          if (data.line) {
+            output.innerHTML += data.line + '\n';
+            output.scrollTop = output.scrollHeight;
+          } else if (data.error) {
+            output.innerHTML += `<span class="error">[ERROR] ${data.error}</span>\n`;
+          } else if (data.done) {
+            output.innerHTML += `<span class="success">\n[✓] Probe completed (exit ${data.code})</span>\n`;
+          }
+        }
+      });
+    }
+  } catch (e) {
+    output.innerHTML += `<span class="error">[ERROR] ${e.message}</span>\n`;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Run Probe Matrix';
+  }
+}
+
+loadConfig();
+</script>
+
+</body>
+</html>
