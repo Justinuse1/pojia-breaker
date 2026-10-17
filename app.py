@@ -10,7 +10,7 @@ from pathlib import Path
 from flask import Flask, render_template, request, jsonify, Response
 import yaml
 
-app = Flask(__name__)
+app = Flask(__name__, template_folder='.')
 
 # Load ammo templates
 AMMO_DIR = Path("ammo")
